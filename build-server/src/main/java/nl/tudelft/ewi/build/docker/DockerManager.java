@@ -51,7 +51,7 @@ public class DockerManager {
 				logFuture.cancel(true);
 				
 				stop(host, container);
-				delete(host, container);
+				//delete(host, container);
 				logger.onClose(code.getStatusCode());
 			}
 		});
@@ -170,7 +170,7 @@ public class DockerManager {
 		while (true) {
 			status = getStatus(host, container);
 			Integer statusCode = status.getStatusCode();
-			if (statusCode != null && statusCode >= 0) {
+			if (statusCode != null) {
 				break;
 			}
 			
