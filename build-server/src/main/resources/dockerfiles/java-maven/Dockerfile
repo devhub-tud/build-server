@@ -26,13 +26,13 @@ RUN ln -s /usr/share/maven3/bin/mvn /usr/bin/mvn
 
 RUN apt-get -y install psmisc xfonts-100dpi xfonts-75dpi xfonts-scalable xfonts-cyrillic xvfb libxrender-dev libxtst6 libxi6
 
-RUN echo "#!/bin/bash" >> /usr/bin/with-xvfb
-RUN echo "/usr/bin/Xvfb :99 -ac -screen 0 1024x768x8&" >> /usr/bin/with-xvfb
-RUN echo "sleep 1" >> /usr/bin/with-xvfb
-RUN echo "\$@" >> /usr/bin/with-xvfb
-RUN echo "exit_value=\$?" >> /usr/bin/with-xvfb
-RUN echo "killall Xvfb" >> /usr/bin/with-xvfb
-RUN echo "exit $exit_value" >> /usr/bin/with-xvfb
+RUN echo '#!/bin/bash' >> /usr/bin/with-xvfb
+RUN echo '/usr/bin/Xvfb :99 -ac -screen 0 1024x768x8&' >> /usr/bin/with-xvfb
+RUN echo 'sleep 1' >> /usr/bin/with-xvfb
+RUN echo '$@' >> /usr/bin/with-xvfb
+RUN echo 'exit_value=$?' >> /usr/bin/with-xvfb
+RUN echo 'killall Xvfb' >> /usr/bin/with-xvfb
+RUN echo 'exit $exit_value' >> /usr/bin/with-xvfb
 RUN chmod +x /usr/bin/with-xvfb
 
 ENV DISPLAY :99

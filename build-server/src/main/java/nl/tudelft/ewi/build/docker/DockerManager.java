@@ -51,7 +51,7 @@ public class DockerManager {
 				logFuture.cancel(true);
 				
 				stop(host, container);
-				//delete(host, container);
+				delete(host, container);
 				logger.onClose(code.getStatusCode());
 			}
 		});
