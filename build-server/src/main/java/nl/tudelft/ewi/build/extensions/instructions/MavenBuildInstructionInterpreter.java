@@ -23,7 +23,7 @@ public class MavenBuildInstructionInterpreter extends DefaultBuildInstructionInt
 		if (instruction.isWithDisplay()) {
 			partials.add("with-xvfb");
 		}
-		partials.add("mvn");
+		partials.add("mvn -B");
 		for (String phase : instruction.getPhases()) {
 			partials.add(phase);
 		}
