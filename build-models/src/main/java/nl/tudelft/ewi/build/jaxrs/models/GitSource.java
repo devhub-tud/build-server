@@ -6,6 +6,10 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class GitSource extends Source {
+	
+	public GitSource() {
+		setType(Type.GIT);
+	}
 
 	private String repositoryUrl;
 	
