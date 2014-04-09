@@ -9,6 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jgit.transport.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.OpenSshConfig.Host;
+import org.eclipse.jgit.transport.SshSessionFactory;
 import org.jboss.resteasy.plugins.guice.GuiceResteasyBootstrapServletContextListener;
 import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -16,6 +19,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import com.jcraft.jsch.Session;
 
 @Slf4j
 public class BuildServer {
@@ -58,7 +62,15 @@ public class BuildServer {
 				}
 				
 				@Override
-				protected void withInjector(Injector injector) { }
+				protected void withInjector(Injector injector) {
+					// TODO: Fix this...
+					SshSessionFactory.setInstance(new JschConfigSessionFactory() {
+						@Override
+						protected void configure(Host hc, Session session) {
+							session.setConfig("StrictHostKeyChecking", "no");
+						}
+					});
+				}
 			});
 			
 			addServlet(HttpServletDispatcher.class, "/");
