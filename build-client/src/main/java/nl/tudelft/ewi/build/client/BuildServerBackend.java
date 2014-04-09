@@ -4,24 +4,26 @@ import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
-
-import org.jboss.resteasy.util.Base64;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
+
+import org.jboss.resteasy.util.Base64;
 
 /**
  * This class allows you query and manipulate builds on the build-server.
  */
 @Slf4j
-public class Builds extends Backend {
+public class BuildServerBackend extends Backend {
 
 	private static final String BASE_PATH = "/api/builds";
 	
 	private final String clientId;
 	private final String clientSecret;
 
-	Builds(String host, String clientId, String clientSecret) {
+	public BuildServerBackend(String host, String clientId, String clientSecret) {
 		super(host);
 		this.clientId = clientId;
 		this.clientSecret = clientSecret;
@@ -42,12 +44,14 @@ public class Builds extends Backend {
 					String authKey = clientId + ":" + clientSecret;
 					String authHash = Base64.encodeBytes(authKey.getBytes());
 					
-					client.target(createUrl(BASE_PATH))
+					Response response = client.target(createUrl(BASE_PATH))
 							.request(MediaType.APPLICATION_JSON)
 							.header("Authorization", "Basic " + authHash)
-							.post(Entity.json(buildRequest));
+							.post(Entity.json(buildRequest), Response.class);
 					
-					return true;
+					int statusCode = response.getStatus();
+					Status status = Status.fromStatusCode(statusCode);
+					return status == Status.OK;
 				}
 				catch (ProcessingException e) {
 					log.warn(e.getMessage(), e);
