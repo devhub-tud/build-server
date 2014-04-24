@@ -9,7 +9,6 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.Response.StatusType;
 
 import lombok.AccessLevel;
@@ -131,30 +130,30 @@ class BuildRunner implements Runnable {
 	private void broadcastResultThroughCallback(BuildResult result) {
 		log.info("Returning build results to callback URL: " + request.getCallbackUrl());
 
-		// while (true) {
-		Client client = null;
-		try {
-			client = ClientBuilder.newClient();
-			Response response = prepareCallback(client).post(Entity.json(result));
-			StatusType statusInfo = response.getStatusInfo();
-			if (statusInfo.getStatusCode() == Status.OK.getStatusCode()) {
-				log.info("Build result successfully returned to: " + request.getCallbackUrl());
-				return;
+		for (int i = 0; i < 3; i++) {
+			Client client = null;
+			try {
+				client = ClientBuilder.newClient();
+				Response response = prepareCallback(client).post(Entity.json(result));
+				StatusType statusInfo = response.getStatusInfo();
+				if (statusInfo.getStatusCode() >= 200 && statusInfo.getStatusCode() < 300) {
+					log.info("Build result successfully returned to: " + request.getCallbackUrl());
+					return;
+				}
+				log.warn("Could not return build result to: {}, status was: {} - {}", request.getCallbackUrl(),
+						response.getStatus(), statusInfo.getReasonPhrase());
 			}
-			log.warn("Could not return build result to: {}, status was: {} - {}", request.getCallbackUrl(),
-					response.getStatus(), statusInfo.getReasonPhrase());
-		}
-		catch (Throwable e) {
-			log.warn(e.getMessage(), e);
-		}
-		finally {
-			if (client != null) {
-				client.close();
+			catch (Throwable e) {
+				log.warn(e.getMessage(), e);
 			}
-		}
+			finally {
+				if (client != null) {
+					client.close();
+				}
+			}
 
-		// Thread.sleep(2500L);
-		// }
+			Thread.sleep(10000L);
+		}
 	}
 
 	private Builder prepareCallback(Client client) {
