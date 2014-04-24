@@ -14,13 +14,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.builds.BuildManager;
 import nl.tudelft.ewi.build.jaxrs.filters.RequireAuthentication;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
-import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
 
-@Slf4j
 @Path("api/builds")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -44,15 +41,6 @@ public class BuildsResource {
 				.build();
 		}
 
-		return Response.ok()
-			.build();
-	}
-
-	@POST
-	@Path("callback")
-	@RequireAuthentication
-	public Response onBuildResult(BuildResult buildResult) {
-		log.warn(buildResult.toString());
 		return Response.ok()
 			.build();
 	}
