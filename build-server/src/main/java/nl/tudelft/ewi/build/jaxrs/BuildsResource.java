@@ -17,6 +17,7 @@ import javax.ws.rs.core.Response.Status;
 import nl.tudelft.ewi.build.builds.BuildManager;
 import nl.tudelft.ewi.build.jaxrs.filters.RequireAuthentication;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
+import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
 
 @Path("api/builds")
 @Produces(MediaType.APPLICATION_JSON)
@@ -29,7 +30,7 @@ public class BuildsResource {
 	public BuildsResource(BuildManager manager) {
 		this.manager = manager;
 	}
-	
+
 	@POST
 	@RequireAuthentication
 	public Response onBuildRequest(@Context HttpServletRequest request, @Valid BuildRequest buildRequest) {
@@ -41,6 +42,14 @@ public class BuildsResource {
 				.build();
 		}
 
+		return Response.ok()
+			.build();
+	}
+
+	@POST
+	@RequireAuthentication
+	public Response onBuildResult(BuildResult buildResult) {
+		System.out.println(buildResult);
 		return Response.ok()
 			.build();
 	}
