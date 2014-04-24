@@ -8,11 +8,13 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import lombok.AccessLevel;
-import lombok.Cleanup;
 import lombok.Data;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
 import nl.tudelft.ewi.build.docker.DefaultLogger;
@@ -34,18 +36,18 @@ import org.jboss.resteasy.util.Base64;
 import com.google.common.collect.ImmutableMap;
 
 @Data
-@Slf4j 
+@Slf4j
 @Getter(AccessLevel.NONE)
 class BuildRunner implements Runnable {
-	
+
 	private final DockerManager docker;
 	private final Config config;
 	private final BuildRequest request;
 	private final UUID identifier;
-	
+
 	@Override
 	public void run() {
-		final DefaultLogger logger = new DefaultLogger(); 
+		final DefaultLogger logger = new DefaultLogger();
 		try {
 			final File stagingDirectory = createStagingDirectory(logger);
 			logger.onClose(new OnClose() {
@@ -55,7 +57,7 @@ class BuildRunner implements Runnable {
 					broadcastResultThroughCallback(result);
 				}
 			});
-			
+
 			prepareStagingDirectory(logger, stagingDirectory);
 			startDockerJob(logger, stagingDirectory.getAbsolutePath());
 		}
@@ -81,13 +83,13 @@ class BuildRunner implements Runnable {
 	private void startDockerJob(Logger logger, String stagingDirectory) throws Throwable {
 		BuildInstruction instruction = request.getInstruction();
 		BuildInstructionInterpreter<BuildInstruction> buildDecorator = createBuildDecorator();
-		
+
 		DockerJob job = new DockerJob();
 		job.setCommand(buildDecorator.getCommand(instruction));
 		job.setImage(buildDecorator.getImage(instruction));
 		job.setWorkingDirectory(config.getWorkingDirectory());
 		job.setMounts(ImmutableMap.of(stagingDirectory, config.getWorkingDirectory()));
-		
+
 		try {
 			log.debug("Starting docker job: {}", instruction);
 			docker.run(logger, job);
@@ -97,7 +99,7 @@ class BuildRunner implements Runnable {
 			throw e;
 		}
 	}
-	
+
 	private void prepareStagingDirectory(DefaultLogger logger, File stagingDirectory) throws IOException {
 		Source source = request.getSource();
 		log.info("Preparing staging directory with source: {}", source);
@@ -109,33 +111,48 @@ class BuildRunner implements Runnable {
 		log.info("Creating build result according to instruction: {}", instruction);
 		return createBuildDecorator().createResult(instruction, logger, stagingDirectory);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private BuildInstructionInterpreter<BuildInstruction> createBuildDecorator() {
 		BuildInstruction instruction = request.getInstruction();
 		BuildInstructionInterpreterRegistry registry = new BuildInstructionInterpreterRegistry();
 		return (BuildInstructionInterpreter<BuildInstruction>) registry.getBuildDecorator(instruction.getClass());
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private StagingDirectoryPreparer<Source> createStagingDirectoryPreparer() {
 		Source source = request.getSource();
 		StagingDirectoryPreparerRegistry registry = new StagingDirectoryPreparerRegistry();
 		return (StagingDirectoryPreparer<Source>) registry.getStagingDirectoryPreparer(source.getClass());
 	}
-	
+
+	@SneakyThrows
 	private void broadcastResultThroughCallback(BuildResult result) {
-		log.info("Sending build results to callback URL: " + request.getCallbackUrl());
-		@Cleanup Client client = ClientBuilder.newClient();
-		prepareCallback(client).post(Entity.json(result));
+		log.info("Returning build results to callback URL: " + request.getCallbackUrl());
+
+		while (true) {
+			try {
+				Client client = ClientBuilder.newClient();
+				Response response = prepareCallback(client).post(Entity.json(result));
+				if (response.getStatus() == Status.OK.getStatusCode()) {
+					log.info("Build result successfully returned to: " + request.getCallbackUrl());
+					return;
+				}
+			}
+			catch (Throwable e) {
+				log.warn(e.getMessage(), e);
+			}
+
+			Thread.sleep(2500L);
+		}
 	}
 
 	private Builder prepareCallback(Client client) {
 		String userPass = config.getClientId() + ":" + config.getClientSecret();
 		String authorization = "Basic " + Base64.encodeBytes(userPass.getBytes());
 		return client.target(request.getCallbackUrl())
-				.request()
-				.header("Authorization", authorization);
+			.request()
+			.header("Authorization", authorization);
 	}
-	
+
 }
