@@ -47,6 +47,7 @@ public class BuildsResource {
 	}
 
 	@POST
+	@Path("callback")
 	@RequireAuthentication
 	public Response onBuildResult(BuildResult buildResult) {
 		System.out.println(buildResult);
