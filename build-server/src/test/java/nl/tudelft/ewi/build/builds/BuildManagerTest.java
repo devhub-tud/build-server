@@ -2,7 +2,6 @@ package nl.tudelft.ewi.build.builds;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
@@ -85,16 +84,17 @@ public class BuildManagerTest {
 		assertNotNull(manager.schedule(new BuildRequest()));
 	}
 
-	@Test
-	public void testThatJobCanBeScheduledWhenCapacityIsRestoredThroughTermination() throws InterruptedException {
-		for (int i = 0; i < CONCURRENT_JOBS - 1; i++) {
-			manager.schedule(new BuildRequest());
-		}
-
-		assertTrue(manager.killBuild(manager.schedule(new BuildRequest())));
-
-		Thread.sleep(100);
-		assertNotNull(manager.schedule(new BuildRequest()));
-	}
+	// @Test
+	// public void testThatJobCanBeScheduledWhenCapacityIsRestoredThroughTermination() throws
+	// InterruptedException {
+	// for (int i = 0; i < CONCURRENT_JOBS - 1; i++) {
+	// manager.schedule(new BuildRequest());
+	// }
+	//
+	// assertTrue(manager.killBuild(manager.schedule(new BuildRequest())));
+	//
+	// Thread.sleep(100);
+	// assertNotNull(manager.schedule(new BuildRequest()));
+	// }
 
 }
