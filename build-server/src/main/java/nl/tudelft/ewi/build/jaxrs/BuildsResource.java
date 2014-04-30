@@ -3,13 +3,12 @@ package nl.tudelft.ewi.build.jaxrs;
 import java.util.UUID;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -32,7 +31,7 @@ public class BuildsResource {
 
 	@POST
 	@RequireAuthentication
-	public Response onBuildRequest(@Context HttpServletRequest request, @Valid BuildRequest buildRequest) {
+	public Response onBuildRequest(@Valid BuildRequest buildRequest) {
 		UUID id = manager.schedule(buildRequest);
 
 		if (id == null) {
@@ -43,6 +42,12 @@ public class BuildsResource {
 
 		return Response.ok()
 			.build();
+	}
+
+	@DELETE
+	@RequireAuthentication
+	public void killBuild(UUID buildId) {
+		manager.killBuild(buildId);
 	}
 
 }

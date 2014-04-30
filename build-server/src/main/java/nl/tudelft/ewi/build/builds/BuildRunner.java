@@ -22,6 +22,7 @@ import nl.tudelft.ewi.build.docker.DefaultLogger.OnClose;
 import nl.tudelft.ewi.build.docker.DockerJob;
 import nl.tudelft.ewi.build.docker.DockerManager;
 import nl.tudelft.ewi.build.docker.DockerManager.Logger;
+import nl.tudelft.ewi.build.docker.Identifiable;
 import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreter;
 import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreterRegistry;
 import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparer;
@@ -48,6 +49,8 @@ class BuildRunner implements Runnable {
 	@Override
 	public void run() {
 		final DefaultLogger logger = new DefaultLogger();
+		Identifiable container = null;
+
 		try {
 			final File stagingDirectory = createStagingDirectory(logger);
 			logger.onClose(new OnClose() {
@@ -59,11 +62,21 @@ class BuildRunner implements Runnable {
 			});
 
 			prepareStagingDirectory(logger, stagingDirectory);
-			startDockerJob(logger, stagingDirectory.getAbsolutePath());
+			container = startDockerJob(logger, stagingDirectory.getAbsolutePath());
+		}
+		catch (InterruptedException e) {
+			log.warn("BuildRunner: {} was interrupted!", identifier);
+			logger.onNextLine("[ERROR] Build was terminated due to exceeded time limit!");
+			logger.onClose(-1);
 		}
 		catch (Throwable e) {
 			log.error(e.getMessage(), e);
 			logger.onClose(-1);
+		}
+		finally {
+			if (container != null) {
+				docker.terminate(container);
+			}
 		}
 	}
 
@@ -80,7 +93,7 @@ class BuildRunner implements Runnable {
 		}
 	}
 
-	private void startDockerJob(Logger logger, String stagingDirectory) throws Throwable {
+	private Identifiable startDockerJob(Logger logger, String stagingDirectory) throws Throwable {
 		BuildInstruction instruction = request.getInstruction();
 		BuildInstructionInterpreter<BuildInstruction> buildDecorator = createBuildDecorator();
 
@@ -92,7 +105,7 @@ class BuildRunner implements Runnable {
 
 		try {
 			log.debug("Starting docker job: {}", instruction);
-			docker.run(logger, job);
+			return docker.run(logger, job);
 		}
 		catch (Throwable e) {
 			logger.onNextLine("[FATAL] Failed to provision new build environment");

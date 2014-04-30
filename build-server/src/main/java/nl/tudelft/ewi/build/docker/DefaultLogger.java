@@ -1,22 +1,26 @@
 package nl.tudelft.ewi.build.docker;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.docker.DockerManager.Logger;
 
 import com.google.common.collect.Lists;
 
 @Data
+@Slf4j
 public class DefaultLogger implements Logger {
-	
+
 	public static interface OnClose {
 		void onClose();
 	}
-	
+
 	private final List<String> logLines = Lists.newArrayList();
 	private final AtomicInteger exitCode = new AtomicInteger();
+	private final AtomicBoolean terminated = new AtomicBoolean();
 	private final List<OnClose> onCloseCallbacks = Lists.newArrayList();
 
 	@Override
@@ -31,12 +35,17 @@ public class DefaultLogger implements Logger {
 
 	@Override
 	public void onClose(int statusCode) {
-		exitCode.set(statusCode);
-		for (OnClose callback : onCloseCallbacks) {
-			callback.onClose();
+		if (terminated.compareAndSet(false, true)) {
+			exitCode.set(statusCode);
+			for (OnClose callback : onCloseCallbacks) {
+				callback.onClose();
+			}
+		}
+		else {
+			log.warn("DefaultLogger was already closed...");
 		}
 	}
-	
+
 	public void onClose(OnClose onCloseCallback) {
 		onCloseCallbacks.add(onCloseCallback);
 	}
