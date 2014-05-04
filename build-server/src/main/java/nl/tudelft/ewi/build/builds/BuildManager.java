@@ -1,8 +1,10 @@
 package nl.tudelft.ewi.build.builds;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -11,6 +13,7 @@ import javax.inject.Singleton;
 
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
+import nl.tudelft.ewi.build.docker.Container;
 import nl.tudelft.ewi.build.docker.DockerManager;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 
@@ -24,19 +27,19 @@ import com.google.common.util.concurrent.MoreExecutors;
 public class BuildManager {
 
 	private final Map<UUID, ListenableFuture<?>> futures;
+	private final Map<UUID, BuildRunner> runners;
+
 	private final ListeningExecutorService listeningService;
 	private final ScheduledExecutorService schedulerService;
 	private final DockerManager dockerManager;
 	private final Config config;
 
-	private final int concurrentJobs;
-	private volatile Integer runningJobs = 0;
-
 	@Inject
 	public BuildManager(DockerManager dockerManager, Config config) {
-		this.concurrentJobs = config.getMaximumConcurrentJobs();
 		this.futures = Maps.newHashMap();
-		this.schedulerService = Executors.newScheduledThreadPool(concurrentJobs);
+		this.runners = Maps.newHashMap();
+
+		this.schedulerService = Executors.newScheduledThreadPool(config.getMaximumConcurrentJobs());
 		this.listeningService = MoreExecutors.listeningDecorator(schedulerService);
 		this.dockerManager = dockerManager;
 		this.config = config;
@@ -44,51 +47,60 @@ public class BuildManager {
 
 	public UUID schedule(BuildRequest request) {
 		log.info("Submitted job: " + request);
-		synchronized (runningJobs) {
-			if (runningJobs + 1 > concurrentJobs) {
-				log.info("Server is too busy!");
-				return null;
-			}
-			runningJobs = runningJobs + 1;
+		List<Container> containers = dockerManager.listContainers();
+		if (containers.size() >= config.getMaximumConcurrentJobs()) {
+			log.info("Server is too busy!");
+			return null;
 		}
 
-		UUID identifier = UUID.randomUUID();
-		BuildRunner runner = new BuildRunner(dockerManager, config, request, identifier);
+		UUID buildId = UUID.randomUUID();
+		BuildRunner runner = new BuildRunner(dockerManager, config, request, buildId);
 		ListenableFuture<?> future = listeningService.submit(runner);
-		future.addListener(createListener(), listeningService);
-		futures.put(identifier, future);
+		futures.put(buildId, future);
+		runners.put(buildId, runner);
 
-		if (request.getTimeout() > 0) {
-			schedulerService.schedule(createTerminator(identifier), request.getTimeout(), TimeUnit.MINUTES);
+		int timeout = request.getTimeout();
+		if (timeout > 0) {
+			log.debug("Build will automatically terminate in: {} seconds...", timeout);
+			Runnable terminator = createTerminator(buildId);
+			final Future<?> terminatorFuture = schedulerService.schedule(terminator, timeout, TimeUnit.SECONDS);
+			future.addListener(cancelTerminator(buildId, terminatorFuture), schedulerService);
 		}
 
-		return identifier;
+		return buildId;
 	}
 
-	private Runnable createTerminator(final UUID identifier) {
+	private Runnable cancelTerminator(final UUID buildId, final Future<?> terminatorFuture) {
 		return new Runnable() {
 			@Override
 			public void run() {
-				killBuild(identifier);
-			}
-		};
-	}
-
-	private Runnable createListener() {
-		return new Runnable() {
-			@Override
-			public void run() {
-				synchronized (runningJobs) {
-					runningJobs = runningJobs - 1;
+				Future<?> future = futures.remove(buildId);
+				if (future != null && !future.isDone() && !future.isCancelled()) {
+					log.debug("Cancelling terminator for build: {}", buildId);
+					terminatorFuture.cancel(true);
 				}
 			}
 		};
 	}
 
+	private Runnable createTerminator(final UUID buildId) {
+		return new Runnable() {
+			@Override
+			public void run() {
+				log.debug("Forcefully terminating build: {}", buildId);
+				killBuild(buildId);
+			}
+		};
+	}
+
 	public boolean killBuild(UUID buildId) {
-		ListenableFuture<?> future = futures.get(buildId);
+		BuildRunner runner = runners.remove(buildId);
+		ListenableFuture<?> future = futures.remove(buildId);
+
 		if (future != null) {
-			return future.cancel(true);
+			future.cancel(true);
+			runner.terminate();
+			return true;
 		}
 		return false;
 	}

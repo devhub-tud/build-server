@@ -3,6 +3,7 @@ package nl.tudelft.ewi.build.docker;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,11 @@ public class DefaultLogger implements Logger {
 	private final AtomicInteger exitCode = new AtomicInteger();
 	private final AtomicBoolean terminated = new AtomicBoolean();
 	private final List<OnClose> onCloseCallbacks = Lists.newArrayList();
+	private final AtomicReference<Identifiable> container;
+
+	public DefaultLogger(AtomicReference<Identifiable> container) {
+		this.container = container;
+	}
 
 	@Override
 	public void onStart() {
@@ -30,6 +36,7 @@ public class DefaultLogger implements Logger {
 
 	@Override
 	public void onNextLine(String line) {
+		log.trace("{} >>> {}", container.get(), line);
 		logLines.add(line);
 	}
 
