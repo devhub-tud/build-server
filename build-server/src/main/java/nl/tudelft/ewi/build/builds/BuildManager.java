@@ -45,7 +45,6 @@ public class BuildManager {
 
 	public UUID schedule(BuildRequest request) {
 		log.info("Submitted job: " + request);
-		log.info("Futures size: {}", futures.size());
 		if (futures.size() >= config.getMaximumConcurrentJobs()) {
 			log.info("Server is too busy!");
 			return null;
