@@ -1,19 +1,19 @@
 package nl.tudelft.ewi.build;
 
-import java.lang.annotation.Annotation;
-
 import javax.ws.rs.Path;
 import javax.ws.rs.ext.Provider;
 
-import lombok.extern.slf4j.Slf4j;
-import nl.tudelft.ewi.build.jaxrs.json.MappingModule;
-
-import org.jboss.resteasy.plugins.guice.ext.JaxrsModule;
-import org.jboss.resteasy.plugins.guice.ext.RequestScopeModule;
-import org.reflections.Reflections;
+import java.lang.annotation.Annotation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
+import lombok.extern.slf4j.Slf4j;
+import nl.tudelft.ewi.build.docker.DockerManager;
+import nl.tudelft.ewi.build.docker.DockerManagerImpl;
+import nl.tudelft.ewi.build.jaxrs.json.MappingModule;
+import org.jboss.resteasy.plugins.guice.ext.JaxrsModule;
+import org.jboss.resteasy.plugins.guice.ext.RequestScopeModule;
+import org.reflections.Reflections;
 
 @Slf4j
 public class BuildServerModule extends AbstractModule {
@@ -38,6 +38,8 @@ public class BuildServerModule extends AbstractModule {
 				return mapper;
 			}
 		});
+		
+		bind(DockerManager.class).to(DockerManagerImpl.class);
 		
 		findResourcesWith(Path.class);
 		findResourcesWith(Provider.class);
