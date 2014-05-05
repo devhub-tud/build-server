@@ -1,6 +1,8 @@
 package nl.tudelft.ewi.build.builds;
 
-import java.util.List;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -8,19 +10,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
-import lombok.extern.slf4j.Slf4j;
-import nl.tudelft.ewi.build.Config;
-import nl.tudelft.ewi.build.docker.Container;
-import nl.tudelft.ewi.build.docker.DockerManager;
-import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
-
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import nl.tudelft.ewi.build.Config;
+import nl.tudelft.ewi.build.docker.DockerManager;
+import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 
 @Slf4j
 @Singleton
@@ -36,8 +34,8 @@ public class BuildManager {
 
 	@Inject
 	public BuildManager(DockerManager dockerManager, Config config) {
-		this.futures = Maps.newHashMap();
-		this.runners = Maps.newHashMap();
+		this.futures = Maps.newConcurrentMap();
+		this.runners = Maps.newConcurrentMap();
 
 		this.schedulerService = Executors.newScheduledThreadPool(config.getMaximumConcurrentJobs());
 		this.listeningService = MoreExecutors.listeningDecorator(schedulerService);
@@ -47,8 +45,8 @@ public class BuildManager {
 
 	public UUID schedule(BuildRequest request) {
 		log.info("Submitted job: " + request);
-		List<Container> containers = dockerManager.listContainers();
-		if (containers.size() >= config.getMaximumConcurrentJobs()) {
+		log.info("Futures size: {}", futures.size());
+		if (futures.size() >= config.getMaximumConcurrentJobs()) {
 			log.info("Server is too busy!");
 			return null;
 		}
@@ -66,8 +64,20 @@ public class BuildManager {
 			final Future<?> terminatorFuture = schedulerService.schedule(terminator, timeout, TimeUnit.SECONDS);
 			future.addListener(cancelTerminator(buildId, terminatorFuture), schedulerService);
 		}
+		
+		future.addListener(cleaner(buildId), schedulerService);
 
 		return buildId;
+	}
+
+	private Runnable cleaner(final UUID buildId) {
+		return new Runnable() {
+			@Override
+			public void run() {
+				futures.remove(buildId);
+				runners.remove(buildId);
+			}
+		};
 	}
 
 	private Runnable cancelTerminator(final UUID buildId, final Future<?> terminatorFuture) {
@@ -93,13 +103,16 @@ public class BuildManager {
 		};
 	}
 
+	@SneakyThrows
 	public boolean killBuild(UUID buildId) {
 		BuildRunner runner = runners.remove(buildId);
 		ListenableFuture<?> future = futures.remove(buildId);
 
 		if (future != null) {
 			future.cancel(true);
-			runner.terminate();
+			if (runner != null) {
+				runner.terminate();
+			}
 			return true;
 		}
 		return false;

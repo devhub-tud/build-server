@@ -1,10 +1,5 @@
 package nl.tudelft.ewi.build.builds;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -12,16 +7,24 @@ import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.StatusType;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import lombok.Data;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
+import nl.tudelft.ewi.build.docker.BuildReference;
 import nl.tudelft.ewi.build.docker.DefaultLogger;
 import nl.tudelft.ewi.build.docker.DefaultLogger.OnClose;
 import nl.tudelft.ewi.build.docker.DockerJob;
 import nl.tudelft.ewi.build.docker.DockerManager;
-import nl.tudelft.ewi.build.docker.DockerManager.Logger;
 import nl.tudelft.ewi.build.docker.Identifiable;
+import nl.tudelft.ewi.build.docker.Logger;
 import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreter;
 import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreterRegistry;
 import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparer;
@@ -30,11 +33,7 @@ import nl.tudelft.ewi.build.jaxrs.models.BuildInstruction;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
 import nl.tudelft.ewi.build.jaxrs.models.Source;
-
 import org.jboss.resteasy.util.Base64;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 
 @Data
 @Slf4j
@@ -62,7 +61,7 @@ class BuildRunner implements Runnable {
 			});
 
 			prepareStagingDirectory(logger, stagingDirectory);
-			startDockerJob(logger, stagingDirectory.getAbsolutePath(), container);
+			startDockerJob(logger, stagingDirectory.getAbsolutePath());
 		}
 		catch (Throwable e) {
 			log.error(e.getMessage(), e);
@@ -71,8 +70,8 @@ class BuildRunner implements Runnable {
 	}
 
 	public boolean terminate() {
-		if (container != null) {
-			Identifiable identifiable = container.get();
+		Identifiable identifiable = container.get();
+		if (identifiable != null) {
 			log.warn("Issueing container termination to docker: {}", identifiable);
 			return docker.terminate(identifiable);
 		}
@@ -92,9 +91,7 @@ class BuildRunner implements Runnable {
 		}
 	}
 
-	private void startDockerJob(Logger logger, String stagingDirectory, AtomicReference<Identifiable> containerReference)
-			throws Throwable {
-
+	private void startDockerJob(Logger logger, String stagingDirectory) throws Throwable {
 		BuildInstruction instruction = request.getInstruction();
 		BuildInstructionInterpreter<BuildInstruction> buildDecorator = createBuildDecorator();
 
@@ -106,7 +103,9 @@ class BuildRunner implements Runnable {
 
 		try {
 			log.info("Starting docker job: {}", instruction);
-			docker.run(logger, job, containerReference);
+			BuildReference build = docker.run(logger, job);
+			container.set(build.getContainerId());
+			build.awaitTermination();
 		}
 		catch (Throwable e) {
 			logger.onNextLine("[FATAL] Failed to provision new build environment");

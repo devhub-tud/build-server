@@ -7,8 +7,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import nl.tudelft.ewi.build.docker.DockerManager.Logger;
-
 import com.google.common.collect.Lists;
 
 @Data
