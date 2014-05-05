@@ -1,9 +1,5 @@
 package nl.tudelft.ewi.build.builds;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.UUID;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -11,17 +7,24 @@ import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.StatusType;
 
-import lombok.AccessLevel;
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import lombok.Data;
-import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
+import nl.tudelft.ewi.build.docker.BuildReference;
 import nl.tudelft.ewi.build.docker.DefaultLogger;
 import nl.tudelft.ewi.build.docker.DefaultLogger.OnClose;
 import nl.tudelft.ewi.build.docker.DockerJob;
 import nl.tudelft.ewi.build.docker.DockerManager;
-import nl.tudelft.ewi.build.docker.DockerManager.Logger;
+import nl.tudelft.ewi.build.docker.Identifiable;
+import nl.tudelft.ewi.build.docker.Logger;
 import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreter;
 import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreterRegistry;
 import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparer;
@@ -30,14 +33,10 @@ import nl.tudelft.ewi.build.jaxrs.models.BuildInstruction;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
 import nl.tudelft.ewi.build.jaxrs.models.Source;
-
 import org.jboss.resteasy.util.Base64;
-
-import com.google.common.collect.ImmutableMap;
 
 @Data
 @Slf4j
-@Getter(AccessLevel.NONE)
 class BuildRunner implements Runnable {
 
 	private final DockerManager docker;
@@ -45,9 +44,12 @@ class BuildRunner implements Runnable {
 	private final BuildRequest request;
 	private final UUID identifier;
 
+	private final AtomicReference<Identifiable> container = new AtomicReference<Identifiable>();
+
 	@Override
 	public void run() {
-		final DefaultLogger logger = new DefaultLogger();
+		final DefaultLogger logger = new DefaultLogger(container);
+
 		try {
 			final File stagingDirectory = createStagingDirectory(logger);
 			logger.onClose(new OnClose() {
@@ -65,6 +67,15 @@ class BuildRunner implements Runnable {
 			log.error(e.getMessage(), e);
 			logger.onClose(-1);
 		}
+	}
+
+	public boolean terminate() {
+		Identifiable identifiable = container.get();
+		if (identifiable != null) {
+			log.warn("Issueing container termination to docker: {}", identifiable);
+			return docker.terminate(identifiable);
+		}
+		return false;
 	}
 
 	private File createStagingDirectory(Logger logger) throws IOException {
@@ -91,8 +102,10 @@ class BuildRunner implements Runnable {
 		job.setMounts(ImmutableMap.of(stagingDirectory, config.getWorkingDirectory()));
 
 		try {
-			log.debug("Starting docker job: {}", instruction);
-			docker.run(logger, job);
+			log.info("Starting docker job: {}", instruction);
+			BuildReference build = docker.run(logger, job);
+			container.set(build.getContainerId());
+			build.awaitTermination();
 		}
 		catch (Throwable e) {
 			logger.onNextLine("[FATAL] Failed to provision new build environment");
@@ -128,16 +141,18 @@ class BuildRunner implements Runnable {
 
 	@SneakyThrows
 	private void broadcastResultThroughCallback(BuildResult result) {
-		log.info("Returning build results to callback URL: " + request.getCallbackUrl());
+		if (Strings.isNullOrEmpty(request.getCallbackUrl())) {
+			return;
+		}
 
-		for (int i = 0; i < 3; i++) {
-			Client client = null;
+		log.info("Returning build results to callback URL: {}", request.getCallbackUrl());
+		for (int i = 0; i <= 4; i++) {
+			Client client = ClientBuilder.newClient();
 			try {
-				client = ClientBuilder.newClient();
 				Response response = prepareCallback(client).post(Entity.json(result));
 				StatusType statusInfo = response.getStatusInfo();
 				if (statusInfo.getStatusCode() >= 200 && statusInfo.getStatusCode() < 300) {
-					log.info("Build result successfully returned to: " + request.getCallbackUrl());
+					log.info("Build result successfully returned to: {}", request.getCallbackUrl());
 					return;
 				}
 				log.warn("Could not return build result to: {}, status was: {} - {}", request.getCallbackUrl(),
@@ -152,8 +167,13 @@ class BuildRunner implements Runnable {
 				}
 			}
 
-			Thread.sleep(10000L);
+			// Exponential backoff.
+			if (i < 4) {
+				Thread.sleep(5000L * 2 ^ i);
+			}
 		}
+
+		log.error("Could not return build result to: {}", request.getCallbackUrl());
 	}
 
 	private Builder prepareCallback(Client client) {

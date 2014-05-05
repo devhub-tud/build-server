@@ -3,10 +3,10 @@ package nl.tudelft.ewi.build.extensions.staging;
 import java.io.File;
 import java.io.IOException;
 
-import lombok.extern.slf4j.Slf4j;
-import nl.tudelft.ewi.build.docker.DockerManager.Logger;
-import nl.tudelft.ewi.build.jaxrs.models.GitSource;
+import nl.tudelft.ewi.build.docker.Logger;
 
+import lombok.extern.slf4j.Slf4j;
+import nl.tudelft.ewi.build.jaxrs.models.GitSource;
 import org.eclipse.jgit.api.CheckoutCommand;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
@@ -38,7 +38,7 @@ public class GitStagingDirectoryPreparer implements StagingDirectoryPreparer<Git
 
 	private void checkoutCommit(GitSource source, Logger logger, Git git) throws IOException {
 		try {
-            log.info("Checking out revision: {}", source.getCommitId());
+			log.info("Checking out revision: {}", source.getCommitId());
             CheckoutCommand checkout = git.checkout();
             checkout.setStartPoint(source.getCommitId());
             checkout.setName(source.getBranchName());

@@ -6,9 +6,11 @@ import lombok.Data;
 public class BuildRequest {
 
 	private Source source;
-	
+
 	private BuildInstruction instruction;
-	
+
 	private String callbackUrl;
-	
+
+	private int timeout;
+
 }
