@@ -32,7 +32,6 @@ import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
 import nl.tudelft.ewi.build.jaxrs.models.Source;
 
-import org.apache.commons.io.FileUtils;
 import org.jboss.resteasy.util.Base64;
 
 import com.google.common.base.Strings;
@@ -52,15 +51,13 @@ class BuildRunner implements Runnable {
 	@Override
 	public void run() {
 		final DefaultLogger logger = new DefaultLogger(container);
-		File stagingDirectory = null;
 		
 		try {
-			stagingDirectory = createStagingDirectory(logger);
-			final File finalStagingDirectory = stagingDirectory;
+			final File stagingDirectory = createStagingDirectory(logger);
 			logger.onClose(new OnClose() {
 				@Override
 				public void onClose() {
-					BuildResult result = createBuildResult(logger, finalStagingDirectory);
+					BuildResult result = createBuildResult(logger, stagingDirectory);
 					broadcastResultThroughCallback(result);
 				}
 			});
@@ -71,16 +68,6 @@ class BuildRunner implements Runnable {
 		catch (Throwable e) {
 			log.error(e.getMessage(), e);
 			logger.onClose(-1);
-		}
-		finally {
-			if (stagingDirectory != null && stagingDirectory.exists()) {
-				try {
-					FileUtils.deleteDirectory(stagingDirectory);
-				}
-				catch (IOException e) {
-					log.warn("Failed to remove temp working directory: " + e.getMessage(), e);
-				}
-			}
 		}
 	}
 
