@@ -37,12 +37,12 @@ RUN chmod +x /usr/bin/with-xvfb
 ENV DISPLAY :99
 
 RUN echo '#!/bin/bash' >> /usr/bin/prepare
-RUN echo 'git clone https://github.com/SERG-Delft/jpacman-framework.git' >> /usr/bin/prepare
-RUN echo 'mvn -f jpacman-framework/pom.xml package' >> /usr/bin/prepare
-RUN echo 'rm -rf jpacman-framework' >> /usr/bin/prepare
+RUN echo 'git clone https://github.com/SERG-Delft/jpacman-template.git' >> /usr/bin/prepare
+RUN echo 'mvn -f jpacman-template/pom.xml package' >> /usr/bin/prepare
+RUN echo 'rm -rf jpacman-template' >> /usr/bin/prepare
 RUN chmod +x /usr/bin/prepare
 
-RUN bash /usr/bin/prepare
+RUN prepare
 RUN rm -rf /usr/bin/prepare
 
 
