@@ -1,5 +1,10 @@
 package nl.tudelft.ewi.build.builds;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -7,13 +12,6 @@ import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.StatusType;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import lombok.Data;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +31,12 @@ import nl.tudelft.ewi.build.jaxrs.models.BuildInstruction;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
 import nl.tudelft.ewi.build.jaxrs.models.Source;
+
+import org.apache.commons.io.FileUtils;
 import org.jboss.resteasy.util.Base64;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 
 @Data
 @Slf4j
@@ -49,13 +52,15 @@ class BuildRunner implements Runnable {
 	@Override
 	public void run() {
 		final DefaultLogger logger = new DefaultLogger(container);
-
+		File stagingDirectory = null;
+		
 		try {
-			final File stagingDirectory = createStagingDirectory(logger);
+			stagingDirectory = createStagingDirectory(logger);
+			final File finalStagingDirectory = stagingDirectory;
 			logger.onClose(new OnClose() {
 				@Override
 				public void onClose() {
-					BuildResult result = createBuildResult(logger, stagingDirectory);
+					BuildResult result = createBuildResult(logger, finalStagingDirectory);
 					broadcastResultThroughCallback(result);
 				}
 			});
@@ -66,6 +71,16 @@ class BuildRunner implements Runnable {
 		catch (Throwable e) {
 			log.error(e.getMessage(), e);
 			logger.onClose(-1);
+		}
+		finally {
+			if (stagingDirectory != null && stagingDirectory.exists()) {
+				try {
+					FileUtils.deleteDirectory(stagingDirectory);
+				}
+				catch (IOException e) {
+					log.warn("Failed to remove temp working directory: " + e.getMessage(), e);
+				}
+			}
 		}
 	}
 
