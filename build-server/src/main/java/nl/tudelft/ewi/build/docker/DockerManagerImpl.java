@@ -1,6 +1,9 @@
 package nl.tudelft.ewi.build.docker;
 
 import javax.inject.Inject;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -13,8 +16,13 @@ import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import com.google.common.base.Strings;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -42,7 +50,7 @@ public class DockerManagerImpl implements DockerManager {
 		final String host = config.getDockerHost();
 		final Identifiable containerId = create(host, job);
 
-		return new BuildReference(job, containerId, executor.submit(new Runnable() {
+		final Future<?> future = executor.submit(new Runnable() {
 			@Override
 			public void run() {
 				start(host, containerId, job);
@@ -55,24 +63,75 @@ public class DockerManagerImpl implements DockerManager {
 				stopAndDelete(host, containerId);
 				logger.onClose(code.getStatusCode());
 			}
-		}));
-	}
+		});
+		
+		return new BuildReference(job, containerId, new Future<Object>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (future.cancel(mayInterruptIfRunning)) {
+					log.warn("Terminating container: {} because it was cancelled.", containerId);
+					stopAndDelete(host, containerId);
+					log.warn("Container: {} was terminated forcefully.", containerId);
+					return true;
+				}
+				return false;
+			}
 
+			@Override
+			public boolean isCancelled() {
+				return future.isCancelled();
+			}
+
+			@Override
+			public boolean isDone() {
+				return future.isDone();
+			}
+
+			@Override
+			public Object get() throws InterruptedException, ExecutionException {
+				return future.get();
+			}
+
+			@Override
+			public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+				return future.get(timeout, unit);
+			}
+		});
+	}
+	
 	@Override
-	public boolean terminate(Identifiable container) {
+	public void terminate(Identifiable container) {
 		String host = config.getDockerHost();
-		return stopAndDelete(host, container);
+		stopAndDelete(host, container);
 	}
 
 	@Override
 	public int getActiveJobs() {
+		int counter = 0;
+		for (Container container : getContainers().values()) {
+			if (!Strings.emptyToNull(container.getStatus()).startsWith("Exit ")) {
+				return counter++;
+			}
+		}
+		return counter;
+	}
+
+	private Map<Identifiable, Container> getContainers() {
 		Client client = null;
 		try {
 			client = ClientBuilder.newClient();
 			log.debug("Listing containers...");
-			return client.target(config.getDockerHost() + "/containers/json")
+			List<Container> containers = client.target(config.getDockerHost() + "/containers/json")
 				.request(MediaType.APPLICATION_JSON)
-				.get(new GenericType<List<Container>>() { }).size();
+				.get(new GenericType<List<Container>>() { });
+			
+			Map<Identifiable, Container> mapping = Maps.newLinkedHashMap();
+			for (Container container : containers) {
+				Identifiable identifiable = new Identifiable();
+				identifiable.setId(container.getId());
+				mapping.put(identifiable, container);
+			}
+			return mapping;
 		}
 		finally {
 			if (client != null) {
@@ -209,6 +268,21 @@ public class DockerManagerImpl implements DockerManager {
 		log.debug("Container: {} terminated with status: {}", container.getId(), status);
 		return status;
 	}
+	
+	private boolean isStopped(String host, Identifiable identifiable) {
+		try {
+			Map<Identifiable, Container> containers = getContainers();
+			if (containers.containsKey(identifiable)) {
+				Container container = containers.get(identifiable);
+				return Strings.nullToEmpty(container.getStatus()).startsWith("Exit ");
+			}
+			return true;
+		}
+		catch (InternalServerErrorException | NotFoundException e) {
+			log.warn(e.getMessage(), e);
+			return true;
+		}
+	}
 
 	private StatusCode getStatus(final String host, final Identifiable container) {
 		Client client = null;
@@ -227,15 +301,38 @@ public class DockerManagerImpl implements DockerManager {
 		}
 	}
 	
-	private boolean stopAndDelete(String host, Identifiable container) {
+	private boolean exists(String host, Identifiable container) {
 		try {
-			stop(host, container);
-			delete(host, container);
-			return true;
+			return getContainers().containsKey(container);
 		}
-		catch (Throwable e) {
-			log.warn("Exception when terminating container: " + container + ": " + e.getMessage(), e);
+		catch (InternalServerErrorException | NotFoundException e) {
 			return false;
+		}
+	}
+	
+	private void stopAndDelete(String host, Identifiable container) {
+		try {
+			log.debug("Attempting to stop container: {}", container);
+			do {
+				stop(host, container);
+				waitFor(1000);
+			}
+			while (!isStopped(host, container));
+		}
+		catch (ClientErrorException e) {
+			log.warn(e.getMessage(), e);
+		}
+
+		try {
+			log.debug("Attempting to delete container: {}", container);
+			do {
+				delete(host, container);
+				waitFor(1000);
+			}
+			while (exists(host, container));
+		}
+		catch (ClientErrorException e) {
+			log.warn(e.getMessage(), e);
 		}
 	}
 
@@ -261,7 +358,7 @@ public class DockerManagerImpl implements DockerManager {
 		try {
 			client = ClientBuilder.newClient();
 			log.debug("Removing container: {}", container.getId());
-			client.target(host + "/containers/" + container.getId() + "?v=1")
+			client.target(host + "/containers/" + container.getId() + "?v=1&force=1")
 				.request()
 				.delete();
 		}
@@ -269,6 +366,15 @@ public class DockerManagerImpl implements DockerManager {
 			if (client != null) {
 				client.close();
 			}
+		}
+	}
+	
+	private void waitFor(int millis) {
+		try {
+			Thread.sleep(millis);
+		}
+		catch (InterruptedException e) {
+			log.warn(e.getMessage(), e);
 		}
 	}
 	

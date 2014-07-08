@@ -10,7 +10,6 @@ import javax.ws.rs.core.Response.StatusType;
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -43,13 +42,11 @@ class BuildRunner implements Runnable {
 	private final Config config;
 	private final BuildRequest request;
 	private final UUID identifier;
-
-	private final AtomicReference<Identifiable> container = new AtomicReference<Identifiable>();
+	
+	private final DefaultLogger logger = new DefaultLogger();
 
 	@Override
 	public void run() {
-		final DefaultLogger logger = new DefaultLogger(container);
-
 		try {
 			final File stagingDirectory = createStagingDirectory(logger);
 			logger.onClose(new OnClose() {
@@ -69,13 +66,12 @@ class BuildRunner implements Runnable {
 		}
 	}
 
-	public boolean terminate() {
-		Identifiable identifiable = container.get();
+	public void terminate() {
+		Identifiable identifiable = logger.getContainer();
 		if (identifiable != null) {
 			log.warn("Issueing container termination to docker: {}", identifiable);
-			return docker.terminate(identifiable);
+			docker.terminate(identifiable);
 		}
-		return false;
 	}
 
 	private File createStagingDirectory(Logger logger) throws IOException {
@@ -104,7 +100,7 @@ class BuildRunner implements Runnable {
 		try {
 			log.info("Starting docker job: {}", instruction);
 			BuildReference build = docker.run(logger, job);
-			container.set(build.getContainerId());
+			logger.initialize(build.getContainerId());
 			build.awaitTermination();
 		}
 		catch (Throwable e) {

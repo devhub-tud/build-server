@@ -1,56 +1,20 @@
 package nl.tudelft.ewi.build;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.Properties;
 
-import lombok.extern.slf4j.Slf4j;
+public interface Config {
 
-@Slf4j
-public class Config {
-
-	private final Properties properties;
+	int getHttpPort();
 	
-	public Config() {
-		this.properties = new Properties();
-		reload();
-	}
+	int getMaximumConcurrentJobs();
 	
-	public void reload() {
-		try (InputStreamReader reader = new InputStreamReader(getClass().getResourceAsStream("/config.properties"))) {
-			properties.load(reader);
-		}
-		catch (IOException e) {
-			log.error(e.getMessage());
-		}
-	}
+	String getDockerHost();
 	
-	public int getHttpPort() {
-		return Integer.parseInt(properties.getProperty("http.port", "8080"));
-	}
+	String getStagingDirectory();
 	
-	public int getMaximumConcurrentJobs() {
-		return Integer.parseInt(properties.getProperty("docker.max-containers"));
-	}
+	String getWorkingDirectory();
 	
-	public String getDockerHost() {
-		return properties.getProperty("docker.host", "http://localhost:4243");
-	}
+	String getClientId();
 	
-	public String getStagingDirectory() {
-		return properties.getProperty("docker.staging-directory");
-	}
-	
-	public String getWorkingDirectory() {
-		return properties.getProperty("docker.working-directory");
-	}
-	
-	public String getClientId() {
-		return properties.getProperty("authorization.client-id");
-	}
-	
-	public String getClientSecret() {
-		return properties.getProperty("authorization.client-secret");
-	}
+	String getClientSecret();
 	
 }
