@@ -21,12 +21,17 @@ public class DefaultLogger implements Logger {
 	private final AtomicInteger exitCode = new AtomicInteger();
 	private final AtomicBoolean terminated = new AtomicBoolean();
 	private final List<OnClose> onCloseCallbacks = Lists.newArrayList();
-	private final AtomicReference<Identifiable> container;
+	private final AtomicReference<Identifiable> container = new AtomicReference<Identifiable>();
 
-	public DefaultLogger(AtomicReference<Identifiable> container) {
-		this.container = container;
+	@Override
+	public void initialize(Identifiable container) {
+		this.container.compareAndSet(null, container);
 	}
-
+	
+	public Identifiable getContainer() {
+		return container.get();
+	}
+	
 	@Override
 	public void onStart() {
 		// Do nothing.

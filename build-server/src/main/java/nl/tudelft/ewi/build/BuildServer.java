@@ -28,9 +28,7 @@ public class BuildServer {
 		SLF4JBridgeHandler.removeHandlersForRootLogger();
 		SLF4JBridgeHandler.install();
 		
-		Config config = new Config();
-		config.reload();
-			
+		Config config = new PropertyBasedConfig();
 		BuildServer server = new BuildServer(config);
 		server.startServer();
 	}
