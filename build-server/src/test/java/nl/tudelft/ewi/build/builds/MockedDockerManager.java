@@ -1,5 +1,7 @@
 package nl.tudelft.ewi.build.builds;
 
+import javax.ws.rs.NotFoundException;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -75,13 +77,14 @@ public class MockedDockerManager implements DockerManager {
 	}
 
 	@Override
-	public boolean terminate(Identifiable containerId) {
+	public void terminate(Identifiable containerId) {
 		ListenableFuture<?> future = futures.get(containerId);
 		if (future != null) {
 			future.cancel(true);
-			return true;
 		}
-		return false;
+		else {
+			throw new NotFoundException("Container: " + containerId.getId() + " does not exist.");
+		}
 	}
 
 	@Override

@@ -2,7 +2,6 @@ FROM ubuntu:precise
 
 MAINTAINER Michael de Jong "https://github.com/michaeldejong"
 
-RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get -y upgrade
 
@@ -36,3 +35,14 @@ RUN echo 'exit $exit_value' >> /usr/bin/with-xvfb
 RUN chmod +x /usr/bin/with-xvfb
 
 ENV DISPLAY :99
+
+RUN echo '#!/bin/bash' >> /usr/bin/prepare
+RUN echo 'git clone https://github.com/SERG-Delft/jpacman-template.git' >> /usr/bin/prepare
+RUN echo 'mvn -f jpacman-template/pom.xml package' >> /usr/bin/prepare
+RUN echo 'rm -rf jpacman-template' >> /usr/bin/prepare
+RUN chmod +x /usr/bin/prepare
+
+RUN prepare
+RUN rm -rf /usr/bin/prepare
+
+

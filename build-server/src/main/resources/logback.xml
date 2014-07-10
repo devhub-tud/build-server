@@ -7,7 +7,7 @@
 		</encoder>
 	</appender>
 	
-	<logger name="nl.tudelft.ewi.build" level="INFO"></logger>
+	<logger name="nl.tudelft.ewi.build" level="DEBUG"></logger>
 
 	<root level="WARN">
 		<appender-ref ref="STDOUT" />
