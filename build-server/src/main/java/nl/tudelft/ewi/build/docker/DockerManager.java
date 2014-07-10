@@ -1,7 +1,11 @@
 package nl.tudelft.ewi.build.docker;
 
+import java.io.IOException;
+
 
 public interface DockerManager {
+	
+	void buildImage(String name, String dockerFileContents, ImageBuildObserver observer) throws IOException;
 
 	/**
 	 * Starts a new container in Docker and attaches the specified

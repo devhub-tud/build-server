@@ -14,7 +14,7 @@ RUN apt-get update && apt-get -y upgrade
 RUN echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
 
 # Install java 7 oracle jdk
-RUN apt-get -y install oracle-java7-installer && apt-get clean
+RUN apt-get -q -y install oracle-java7-installer && apt-get clean
 RUN update-alternatives --display java 
 ENV JAVA_HOME /usr/lib/jvm/java-7-oracle
 
@@ -36,13 +36,4 @@ RUN chmod +x /usr/bin/with-xvfb
 
 ENV DISPLAY :99
 
-RUN echo '#!/bin/bash' >> /usr/bin/prepare
-RUN echo 'git clone https://github.com/SERG-Delft/jpacman-template.git' >> /usr/bin/prepare
-RUN echo 'mvn -f jpacman-template/pom.xml package' >> /usr/bin/prepare
-RUN echo 'rm -rf jpacman-template' >> /usr/bin/prepare
-RUN chmod +x /usr/bin/prepare
-
-RUN prepare
-RUN rm -rf /usr/bin/prepare
-
-
+RUN mvn org.apache.maven.plugins:maven-dependency-plugin:2.8:get -DrepoUrl=https://repository-avandeursen.forge.cloudbees.com/release -Dartifact=nl.tudelft.jpacman:jpacman-framework:6.0.0
