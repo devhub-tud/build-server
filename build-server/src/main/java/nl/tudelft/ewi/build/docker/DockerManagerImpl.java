@@ -10,9 +10,17 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -22,15 +30,19 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
+import org.xeustechnologies.jtar.TarEntry;
+import org.xeustechnologies.jtar.TarOutputStream;
 
 @Slf4j
 public class DockerManagerImpl implements DockerManager {
@@ -44,7 +56,7 @@ public class DockerManagerImpl implements DockerManager {
 		this.executor = MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(poolSize));
 		this.config = config;
 	}
-
+	
 	@Override
 	public BuildReference run(final Logger logger, final DockerJob job) {
 		final String host = config.getDockerHost();
@@ -116,6 +128,68 @@ public class DockerManagerImpl implements DockerManager {
 		return counter;
 	}
 
+	@Override
+	public void buildImage(String name, String dockerFileContents, ImageBuildObserver observer) throws IOException {
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(name));
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(dockerFileContents));
+		
+		name = URLEncoder.encode(name, "UTF-8");
+		
+		File tempDir = Files.createTempDir();
+		File archive = new File(tempDir, "image.tar");
+		File dockerFile = new File(tempDir, "Dockerfile");
+		
+		FileWriter writer = new FileWriter(dockerFile);
+		writer.write(dockerFileContents);
+		writer.flush();
+		writer.close();
+		
+		try (TarOutputStream out = new TarOutputStream(new BufferedOutputStream(new FileOutputStream(archive)))) {
+			out.putNextEntry(new TarEntry(dockerFile, dockerFile.getName()));
+			
+			int count;
+			byte data[] = new byte[2048];
+			try (BufferedInputStream origin = new BufferedInputStream(new FileInputStream(dockerFile))) {
+				while((count = origin.read(data)) != -1) {
+					out.write(data, 0, count);
+				}
+			}
+			out.flush();
+		}
+
+		Client client = null;
+		try {
+			client = ClientBuilder.newClient();
+			log.debug("Requesting image to be built...");
+			InputStream output = client.target(config.getDockerHost() + "/build?t=" + name + "&nocache=true&forcerm=true")
+				.request("application/tar")
+				.post(Entity.entity(archive, "application/tar"), InputStream.class);
+			
+			ObjectMapper mapper = new ObjectMapper();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(output))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					if (line.startsWith("{\"stream\":")) {
+						observer.onMessage(mapper.readValue(line, Stream.class).getStream());
+					}
+					else if (line.startsWith("{\"error\":")) {
+						observer.onError(mapper.readValue(line, Error.class).getErrorDetail().getMessage());
+					}
+				}
+			}
+		}
+		finally {
+			observer.onCompleted();
+			if (client != null) {
+				client.close();
+			}
+			
+			archive.delete();
+			dockerFile.delete();
+			tempDir.delete();
+		}
+	}
+	
 	private Map<Identifiable, Container> getContainers() {
 		Client client = null;
 		try {

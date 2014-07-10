@@ -2,6 +2,7 @@ package nl.tudelft.ewi.build.builds;
 
 import javax.ws.rs.NotFoundException;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -12,6 +13,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import lombok.extern.slf4j.Slf4j;
+import nl.tudelft.ewi.build.docker.ImageBuildObserver;
 import nl.tudelft.ewi.build.docker.BuildReference;
 import nl.tudelft.ewi.build.docker.DockerJob;
 import nl.tudelft.ewi.build.docker.DockerManager;
@@ -90,6 +92,10 @@ public class MockedDockerManager implements DockerManager {
 	@Override
 	public int getActiveJobs() {
 		return futures.size();
+	}
+
+	@Override
+	public void buildImage(String name, String dockerFileContents, ImageBuildObserver observer) throws IOException {
 	}
 
 }
