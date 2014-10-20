@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
+import org.eclipse.jgit.util.FileUtils;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import lombok.Data;
@@ -47,12 +49,15 @@ class BuildRunner implements Runnable {
 
 	@Override
 	public void run() {
+		File stagingDirectory = null;
 		try {
-			final File stagingDirectory = createStagingDirectory(logger);
+			stagingDirectory = createStagingDirectory(logger);
+			
+			final File stagingDirRef = stagingDirectory;
 			logger.onClose(new OnClose() {
 				@Override
 				public void onClose() {
-					BuildResult result = createBuildResult(logger, stagingDirectory);
+					BuildResult result = createBuildResult(logger, stagingDirRef);
 					broadcastResultThroughCallback(result);
 				}
 			});
@@ -63,6 +68,14 @@ class BuildRunner implements Runnable {
 		catch (Throwable e) {
 			log.error(e.getMessage(), e);
 			logger.onClose(-1);
+		}
+		finally {
+			try {
+				FileUtils.delete(stagingDirectory, FileUtils.RECURSIVE);
+			}
+			catch (IOException e) {
+				log.error(e.getMessage(), e);
+			}
 		}
 	}
 
