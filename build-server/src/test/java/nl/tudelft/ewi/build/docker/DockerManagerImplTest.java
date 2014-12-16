@@ -1,7 +1,10 @@
 package nl.tudelft.ewi.build.docker;
 
 import com.google.common.base.Joiner;
+import com.spotify.docker.client.DockerCertificateException;
+
 import nl.tudelft.ewi.build.SimpleConfig;
+
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
@@ -12,7 +15,7 @@ public class DockerManagerImplTest {
 	private DockerManager manager;
 	
 	@Before
-	public void setUp() {
+	public void setUp() throws DockerCertificateException {
 		Assume.assumeTrue("Skipping Docker related tests. If these tests should run set VM argument: "
 				+ "-Ddocker-tests.run=true", "true".equalsIgnoreCase(System.getProperty("docker-tests.run")));
 		

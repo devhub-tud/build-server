@@ -21,10 +21,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URLEncoder;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -33,28 +35,38 @@ import java.util.concurrent.TimeoutException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.spotify.docker.client.DockerCertificateException;
+import com.spotify.docker.client.DockerCertificates;
+
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
+
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.xeustechnologies.jtar.TarEntry;
 import org.xeustechnologies.jtar.TarOutputStream;
 
 @Slf4j
 public class DockerManagerImpl implements DockerManager {
 
-	private final ListeningExecutorService executor;
+	private final ExecutorService executor;
 	private final Config config;
+	private final ClientBuilder clientBuilder;
 
 	@Inject
-	public DockerManagerImpl(Config config) {
+	public DockerManagerImpl(final Config config) throws DockerCertificateException {
 		int poolSize = config.getMaximumConcurrentJobs() * 2;
-		this.executor = MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(poolSize));
+		this.executor = Executors.newScheduledThreadPool(poolSize);
 		this.config = config;
+		
+		Path certificateFolder = new File(config.getCertificateDirectory()).toPath();
+		DockerCertificates certificates = new DockerCertificates(certificateFolder);
+		
+		this.clientBuilder = new ResteasyClientBuilder()
+				.hostnameVerifier(certificates.hostnameVerifier())
+				.sslContext(certificates.sslContext());
 	}
 	
 	@Override
@@ -159,7 +171,7 @@ public class DockerManagerImpl implements DockerManager {
 
 		Client client = null;
 		try {
-			client = ClientBuilder.newClient();
+			client = clientBuilder.build();
 			log.debug("Requesting image to be built...");
 			InputStream output = client.target(config.getDockerHost() + "/build?t=" + name + "&nocache=true&forcerm=true")
 				.request("application/tar")
@@ -193,7 +205,7 @@ public class DockerManagerImpl implements DockerManager {
 	private Map<Identifiable, Container> getContainers() {
 		Client client = null;
 		try {
-			client = ClientBuilder.newClient();
+			client = clientBuilder.build();
 			log.debug("Listing containers...");
 			List<Container> containers = client.target(config.getDockerHost() + "/containers/json")
 				.request(MediaType.APPLICATION_JSON)
@@ -215,23 +227,23 @@ public class DockerManagerImpl implements DockerManager {
 	}
 
 	private Identifiable create(final String host, DockerJob job) {
-		Map<String, Object> volumes = Maps.newHashMap();
+		List<String> mounts = Lists.newArrayList();
 		if (job.getMounts() != null) {
-			for (String mount : job.getMounts()
-				.values()) {
-				volumes.put(mount, ImmutableMap.<String, Object> of());
+			for (Entry<String, String> mount : job.getMounts()
+				.entrySet()) {
+				mounts.add(mount.getKey() + ":" + mount.getValue());// + ":rw");
 			}
 		}
 
 		Container container = new Container().setTty(true)
 			.setCmd(CommandParser.parse(job.getCommand()))
 			.setWorkingDir(job.getWorkingDirectory())
-			.setVolumes(volumes)
+			.setVolumes(mounts)
 			.setImage(job.getImage());
 
 		Client client = null;
 		try {
-			client = ClientBuilder.newClient();
+			client = clientBuilder.build();
 			log.debug("Creating container: {}", container);
 			return client.target(host + "/containers/create")
 				.request(MediaType.APPLICATION_JSON)
@@ -247,12 +259,12 @@ public class DockerManagerImpl implements DockerManager {
 	private void start(final String host, final Identifiable container, final DockerJob job) {
 		Client client = null;
 		try {
-			client = ClientBuilder.newClient();
+			client = clientBuilder.build();
 			List<String> mounts = Lists.newArrayList();
 			if (job.getMounts() != null) {
 				for (Entry<String, String> mount : job.getMounts()
 					.entrySet()) {
-					mounts.add(mount.getKey() + ":" + mount.getValue() + ":rw");
+					mounts.add(mount.getKey() + ":" + mount.getValue());// + ":rw");
 				}
 			}
 
@@ -278,7 +290,7 @@ public class DockerManagerImpl implements DockerManager {
 			public void run() {
 				Client client = null;
 				try {
-					client = ClientBuilder.newClient();
+					client = clientBuilder.build();
 					log.debug("Streaming log from container: {}", container.getId());
 
 					String url = "/containers/" + container.getId() + "/attach?logs=1&stream=1&stdout=1&stderr=1";
@@ -361,7 +373,7 @@ public class DockerManagerImpl implements DockerManager {
 	private StatusCode getStatus(final String host, final Identifiable container) {
 		Client client = null;
 		try {
-			client = ClientBuilder.newClient();
+			client = clientBuilder.build();
 			log.debug("Retrieving status of container: {}", container.getId());
 			return client.target(host + "/containers/" + container.getId() + "/wait")
 				.request()
@@ -413,7 +425,7 @@ public class DockerManagerImpl implements DockerManager {
 	private void stop(final String host, final Identifiable container) {
 		Client client = null;
 		try {
-			client = ClientBuilder.newClient();
+			client = clientBuilder.build();
 			log.debug("Stopping container: {}", container.getId());
 			client.target(host + "/containers/" + container.getId() + "/stop?t=5")
 				.request(MediaType.APPLICATION_JSON)
@@ -430,7 +442,7 @@ public class DockerManagerImpl implements DockerManager {
 	private void delete(String host, Identifiable container) {
 		Client client = null;
 		try {
-			client = ClientBuilder.newClient();
+			client = clientBuilder.build();
 			log.debug("Removing container: {}", container.getId());
 			client.target(host + "/containers/" + container.getId() + "?v=1&force=1")
 				.request()
