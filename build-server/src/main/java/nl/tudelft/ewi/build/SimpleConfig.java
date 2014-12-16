@@ -14,5 +14,6 @@ public class SimpleConfig implements Config {
 	private String workingDirectory = "/workshop";
 	private String clientId = "test-client";
 	private String clientSecret = "test-secret";
+	private String certificateDirectory = "/certs";
 
 }

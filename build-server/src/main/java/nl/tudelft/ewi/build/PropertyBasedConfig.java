@@ -52,5 +52,10 @@ public class PropertyBasedConfig implements Config {
 	public String getClientSecret() {
 		return properties.getProperty("authorization.client-secret");
 	}
+
+	@Override
+	public String getCertificateDirectory() {
+		return properties.getProperty("docker.certificates");
+	}
 	
 }
