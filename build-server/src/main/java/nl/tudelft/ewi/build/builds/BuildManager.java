@@ -56,8 +56,8 @@ public class BuildManager {
 		futures.put(buildId, future);
 		runners.put(buildId, runner);
 
-		int timeout = request.getTimeout();
-		if (timeout > 0) {
+		Integer timeout = request.getTimeout();
+		if (timeout != null && timeout > 0) {
 			log.debug("Build will automatically terminate in: {} seconds...", timeout);
 			Runnable terminator = createTerminator(buildId);
 			final Future<?> terminatorFuture = schedulerService.schedule(terminator, timeout, TimeUnit.SECONDS);

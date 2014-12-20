@@ -41,7 +41,10 @@ public class GitStagingDirectoryPreparer implements StagingDirectoryPreparer<Git
 			log.info("Checking out revision: {}", source.getCommitId());
             CheckoutCommand checkout = git.checkout();
             checkout.setStartPoint(source.getCommitId());
-            checkout.setName(source.getBranchName());
+            if(source.getBranchName() != null)
+            	checkout.setName(source.getBranchName());
+            else
+            	checkout.setName("head");
             checkout.call();
 		}
 		catch (GitAPIException e) {
