@@ -24,6 +24,7 @@ boot2docker ssh
 sudo mkdir /workspace
 sudo mount -t vboxsf -o uid=1000,gid=50 workspace /workspace
 ```
+**Note that these steps have to be repeated each time the boot2docker virtual machine is created**
 
 Add docker images to Docker
 ------------
