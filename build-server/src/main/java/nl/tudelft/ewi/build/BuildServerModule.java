@@ -7,10 +7,13 @@ import java.lang.annotation.Annotation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
+import com.spotify.docker.client.DefaultDockerClient;
+import com.spotify.docker.client.DockerClient;
+
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import nl.tudelft.ewi.build.docker.DockerManager;
-import nl.tudelft.ewi.build.docker.DockerManagerImpl;
 import nl.tudelft.ewi.build.jaxrs.json.MappingModule;
+
 import org.jboss.resteasy.plugins.guice.ext.JaxrsModule;
 import org.jboss.resteasy.plugins.guice.ext.RequestScopeModule;
 import org.reflections.Reflections;
@@ -25,6 +28,7 @@ public class BuildServerModule extends AbstractModule {
 	}
 
 	@Override
+	@SneakyThrows
 	protected void configure() {
 		install(new RequestScopeModule());
 		install(new JaxrsModule());
@@ -39,7 +43,9 @@ public class BuildServerModule extends AbstractModule {
 			}
 		});
 		
-		bind(DockerManager.class).to(DockerManagerImpl.class);
+		bind(DockerClient.class).toInstance(DefaultDockerClient.fromEnv()
+				.readTimeoutMillis(DefaultDockerClient.NO_TIMEOUT)
+				.build());
 		
 		findResourcesWith(Path.class);
 		findResourcesWith(Provider.class);

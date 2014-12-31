@@ -33,10 +33,6 @@ public class PropertyBasedConfig implements Config {
 		return Integer.parseInt(properties.getProperty("docker.max-containers"));
 	}
 	
-	public String getDockerHost() {
-		return properties.getProperty("docker.host", "http://localhost:4243");
-	}
-	
 	public String getStagingDirectory() {
 		return properties.getProperty("docker.staging-directory");
 	}

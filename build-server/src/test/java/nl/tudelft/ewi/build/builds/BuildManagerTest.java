@@ -2,22 +2,43 @@ package nl.tudelft.ewi.build.builds;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
+import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
-import nl.tudelft.ewi.build.docker.DockerManager;
+import nl.tudelft.ewi.build.builds.BuildManager.Build;
+import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreterRegistry;
+import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparerRegistry;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
+import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
+import nl.tudelft.ewi.build.jaxrs.models.BuildResult.Status;
 import nl.tudelft.ewi.build.jaxrs.models.GitSource;
 import nl.tudelft.ewi.build.jaxrs.models.MavenBuildInstruction;
+
+import org.hamcrest.Matchers;
+import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
 
+import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.DockerClient.AttachParameter;
+import com.spotify.docker.client.DockerException;
+import com.spotify.docker.client.MockedLogStream;
+import com.spotify.docker.client.messages.ContainerConfig;
+import com.spotify.docker.client.messages.ContainerCreation;
+import com.spotify.docker.client.messages.ContainerExit;
+
+@Slf4j
 @RunWith(MockitoJUnitRunner.class)
 public class BuildManagerTest {
 
@@ -25,17 +46,30 @@ public class BuildManagerTest {
 	public static final int JOB_DURATION = 250;
 
 	@Mock private Config config;
-
-	private DockerManager dockerManager;
+	@Mock private DockerClient dockerClient;
+	
 	private BuildManager manager;
 
 	@Before
-	public void setUp() {
+	public void setUp() throws DockerException, InterruptedException {
 		when(config.getMaximumConcurrentJobs()).thenReturn(CONCURRENT_JOBS);
 		when(config.getWorkingDirectory()).thenReturn("/workspace");
+		when(config.getStagingDirectory()).thenReturn("/workspace");
 		
-		dockerManager = new MockedDockerManager(CONCURRENT_JOBS, JOB_DURATION);
-		manager = new BuildManager(dockerManager, config);
+		when(dockerClient.createContainer(Mockito.any(ContainerConfig.class), Mockito.anyString()))
+				.thenReturn(new ContainerCreation(UUID.randomUUID().toString()));
+		when(dockerClient.attachContainer(Mockito.anyString(), Mockito.<AttachParameter> anyVararg()))
+				.thenReturn(new MockedLogStream());
+		when(dockerClient.waitContainer(Mockito.anyString())).thenReturn(new ContainerExit(0));
+		
+		manager = new BuildManager(config, dockerClient,
+				new StagingDirectoryPreparerRegistry(),
+				new BuildInstructionInterpreterRegistry());
+	}
+	
+	@After
+	public void tearDown() {
+		manager.lifeCycleStopping(null);
 	}
 
 	@Test
@@ -61,11 +95,13 @@ public class BuildManagerTest {
 
 	@Test
 	public void testThatJobCanBeScheduledWhenCapacityIsRestored() throws InterruptedException {
+		UUID uuid = null;
 		for (int i = 0; i < CONCURRENT_JOBS; i++) {
-			manager.schedule(createRequest());
+			uuid = manager.schedule(createRequest()).getUUID();
 		}
-
-		Thread.sleep(10000);
+		
+		assertNotNull(uuid);
+		manager.killBuild(uuid);
 		assertNotNull(manager.schedule(createRequest()));
 	}
 
@@ -75,12 +111,39 @@ public class BuildManagerTest {
 			manager.schedule(createRequest());
 		}
 		
-		UUID scheduled = manager.schedule(createRequest());
+		UUID scheduled = manager.schedule(createRequest()).getUUID();
 		assertNotNull(scheduled);
-		assertTrue(manager.killBuild(scheduled));
 		
 		Thread.sleep(100);
 		assertNotNull(scheduled);
+	}
+	
+	@Test
+	public void waitForABuild() throws InterruptedException, ExecutionException {
+		Build result = manager.schedule(createRequest());
+		log.info("Result : {}", result.get());
+	}
+	
+	@Test(timeout=2000)
+	public void testBuildWithTimeout() throws DockerException, InterruptedException, ExecutionException {
+		BuildRequest buildRequest = createRequest();
+		buildRequest.setTimeout(1000);
+
+		when(dockerClient.waitContainer(Mockito.anyString())).then(new Answer<ContainerExit>() {
+
+			@Override
+			public ContainerExit answer(InvocationOnMock invocation)
+					throws Throwable {
+				Thread.sleep(20000l);
+				return new ContainerExit(0);
+			}
+			
+		});
+		
+		Build future = manager.schedule(buildRequest);
+		BuildResult buildResult = future.get();
+		Assert.assertEquals(Status.FAILED, buildResult.getStatus());
+		Assert.assertThat(buildResult.getLogLines(), Matchers.hasItem("[FATAL] Build timed out!"));
 	}
 	
 	private BuildRequest createRequest() {

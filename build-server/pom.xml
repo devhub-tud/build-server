@@ -29,6 +29,12 @@
 		</dependency>
 
 		<!-- Utilities -->
+	
+		<dependency>
+		  <groupId>com.spotify</groupId>
+		  <artifactId>docker-client</artifactId>
+		  <version>2.7.19</version>
+		</dependency>
 		<dependency>
 			<groupId>org.eclipse.jgit</groupId>
 			<artifactId>org.eclipse.jgit</artifactId>
@@ -43,6 +49,21 @@
 			<groupId>org.xeustechnologies</groupId>
 			<artifactId>jtar</artifactId>
 			<version>1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jboss.resteasy</groupId>
+			<artifactId>resteasy-guice</artifactId>
+			<version>${resteasy.version}</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>slf4j-simple</artifactId>
+					<groupId>org.slf4j</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>httpclient</artifactId>
+					<groupId>org.apache.httpcomponents</groupId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 

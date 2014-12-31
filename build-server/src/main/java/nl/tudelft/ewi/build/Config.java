@@ -7,8 +7,6 @@ public interface Config {
 	
 	int getMaximumConcurrentJobs();
 	
-	String getDockerHost();
-	
 	String getStagingDirectory();
 	
 	String getWorkingDirectory();
