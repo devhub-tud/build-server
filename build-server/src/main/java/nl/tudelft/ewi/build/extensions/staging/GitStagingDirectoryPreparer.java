@@ -39,10 +39,23 @@ public class GitStagingDirectoryPreparer implements StagingDirectoryPreparer<Git
 	private void checkoutCommit(GitSource source, Logger logger, Git git) throws IOException {
 		try {
 			log.info("Checking out revision: {}", source.getCommitId());
-            CheckoutCommand checkout = git.checkout();
-            checkout.setStartPoint(source.getCommitId());
-            checkout.setName(source.getBranchName());
-            checkout.call();
+
+			String branchName = source.getBranchName();
+
+			// Checkout commit if no branch specified
+			//   http://stackoverflow.com/a/24893404/2104280
+			if(branchName == null) {
+				git.checkout()
+					.setName(source.getCommitId())
+					.call();
+			}
+			else {
+				git.checkout()
+					.setName(source.getBranchName())
+					.setStartPoint(source.getCommitId())
+					.setForce(true)
+					.call();
+			}
 		}
 		catch (GitAPIException e) {
 			logger.onNextLine("[FATAL] Failed to checkout to specified commit: " + source.getCommitId());
