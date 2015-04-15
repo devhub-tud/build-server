@@ -4,9 +4,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.when;
 
+import java.io.File;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.io.Files;
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
 import nl.tudelft.ewi.build.builds.BuildManager.Build;
@@ -20,8 +22,10 @@ import nl.tudelft.ewi.build.jaxrs.models.MavenBuildInstruction;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -50,11 +54,18 @@ public class BuildManagerTest {
 	
 	private BuildManager manager;
 
+	private static File stagingDirectory;
+
+	@BeforeClass
+	public static void createTempDir() {
+		stagingDirectory = Files.createTempDir();
+		stagingDirectory.deleteOnExit();
+	}
+
 	@Before
 	public void setUp() throws DockerException, InterruptedException {
 		when(config.getMaximumConcurrentJobs()).thenReturn(CONCURRENT_JOBS);
-		when(config.getWorkingDirectory()).thenReturn("/workspace");
-		when(config.getStagingDirectory()).thenReturn("/workspace");
+		when(config.getStagingDirectory()).thenReturn(stagingDirectory.getAbsolutePath());
 		
 		when(dockerClient.createContainer(Mockito.any(ContainerConfig.class), Mockito.anyString()))
 				.thenReturn(new ContainerCreation(UUID.randomUUID().toString()));
@@ -124,17 +135,17 @@ public class BuildManagerTest {
 		log.info("Result : {}", result.get());
 	}
 	
-	@Test(timeout=2000)
+	@Test(timeout=2000) // kill test after 2 seconds
 	public void testBuildWithTimeout() throws DockerException, InterruptedException, ExecutionException {
 		BuildRequest buildRequest = createRequest();
-		buildRequest.setTimeout(1000);
+		buildRequest.setTimeout(1); // timeout 1 second
 
 		when(dockerClient.waitContainer(Mockito.anyString())).then(new Answer<ContainerExit>() {
 
 			@Override
 			public ContainerExit answer(InvocationOnMock invocation)
 					throws Throwable {
-				Thread.sleep(20000l);
+				Thread.sleep(20000l); // sleep 20 seconds
 				return new ContainerExit(0);
 			}
 			
