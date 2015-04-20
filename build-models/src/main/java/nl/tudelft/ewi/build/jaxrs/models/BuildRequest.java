@@ -11,6 +11,6 @@ public class BuildRequest {
 
 	private String callbackUrl;
 
-	private int timeout;
+	private Integer timeout;
 
 }

@@ -23,17 +23,6 @@
 		<!-- Web -->
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-client</artifactId>
-			<version>${resteasy.version}</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>slf4j-simple</artifactId>
-					<groupId>org.slf4j</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-guice</artifactId>
 			<version>${resteasy.version}</version>
 			<exclusions>
@@ -112,7 +101,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.12.2</version>
+			<version>1.14.8</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
