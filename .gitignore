@@ -65,3 +65,5 @@ build-server/.settings
 .DS_Store
 .idea/
 *.iml
+pom.xml.versionsBackup
+
