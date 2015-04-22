@@ -272,6 +272,7 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 			ContainerConfig.Builder configBuilder = ContainerConfig.builder()
 					.image(buildInstructionInterpreter.getImage(buildInstruction))
 					.cmd(buildInstructionInterpreter.getCommand(buildInstruction).split(" "))
+					.user(config.getDockerUser())
 					.volumes(volume)
 					.workingDir(WORK_DIR);
 
