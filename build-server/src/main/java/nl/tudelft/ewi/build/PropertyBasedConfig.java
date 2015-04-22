@@ -15,7 +15,7 @@ public class PropertyBasedConfig implements Config {
 		this.properties = new Properties();
 		reload();
 	}
-	
+
 	public void reload() {
 		try (InputStreamReader reader = new InputStreamReader(getClass().getResourceAsStream("/config.properties"))) {
 			properties.load(reader);
@@ -24,29 +24,35 @@ public class PropertyBasedConfig implements Config {
 			log.error(e.getMessage());
 		}
 	}
-	
+
+	@Override
 	public int getHttpPort() {
 		return Integer.parseInt(properties.getProperty("http.port", "8080"));
 	}
-	
+
+	@Override
 	public int getMaximumConcurrentJobs() {
 		return Integer.parseInt(properties.getProperty("docker.max-containers"));
 	}
-	
+
+	@Override
 	public String getStagingDirectory() {
 		return properties.getProperty("docker.staging-directory");
 	}
-	
-	public String getWorkingDirectory() {
-		return properties.getProperty("docker.working-directory");
-	}
-	
+
+	@Override
 	public String getClientId() {
 		return properties.getProperty("authorization.client-id");
 	}
-	
+
+	@Override
 	public String getClientSecret() {
 		return properties.getProperty("authorization.client-secret");
 	}
-	
+
+	@Override
+	public String getDockerUser() {
+		return properties.getProperty("docker.user", "root");
+	}
+
 }
