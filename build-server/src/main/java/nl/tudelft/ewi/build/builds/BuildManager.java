@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import nl.tudelft.ewi.build.jaxrs.models.FileRequest;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jetty.util.component.AbstractLifeCycle.AbstractLifeCycleListener;
 import org.eclipse.jetty.util.component.LifeCycle;
@@ -44,6 +45,12 @@ import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.ContainerExit;
 import com.spotify.docker.client.messages.HostConfig;
+import org.jboss.resteasy.util.Base64;
+
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.MediaType;
 
 @Slf4j
 @Singleton
@@ -299,7 +306,37 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 			}
 
 			log.info("Waiting for container to terminate {}", id);
-			return dockerClient.waitContainer(id);
+			ContainerExit exit = dockerClient.waitContainer(id);
+			sendFileRequests();
+			return exit;
+		}
+
+		private void sendFileRequests() {
+			if(buildRequest.getFileRequests() != null) {
+				for(FileRequest fileRequest : buildRequest.getFileRequests()) {
+					sendFileRequest(fileRequest);
+				}
+			}
+		}
+
+		private void sendFileRequest(final FileRequest fileRequest) {
+			Client client = ClientBuilder.newClient();
+			String userPass = config.getClientId() + ":"
+					+ config.getClientSecret();
+			String authorization = "Basic "
+					+ Base64.encodeBytes(userPass.getBytes());
+			File file = new File(stagingDirectoryReference.get(), fileRequest.getRelativePath());
+
+			try {
+				log.info("Sending {} for build {}", fileRequest, uuid);
+				client.target(fileRequest.getCallbackUrl())
+					.request()
+					.header("Authorization", authorization)
+					.post(Entity.entity(file, MediaType.APPLICATION_XML));
+			}
+			finally {
+				client.close();
+			}
 		}
 
 		/**

@@ -1,0 +1,1 @@
+{"source":{"type":"GIT","repositoryUrl":"repo-url","branchName":"branch-name","commitId":"commitId"},"instruction":{"type":"MAVEN","withDisplay":true,"phases":["make","fap"]},"callbackUrl":"callbackurl","timeout":100}
