@@ -10,6 +10,7 @@ import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 
+import nl.tudelft.ewi.build.jaxrs.models.Version;
 import org.jboss.resteasy.util.Base64;
 
 /**
@@ -61,5 +62,19 @@ public class BuildServerBackendImpl extends Backend implements BuildServerBacken
 			}
 		});
 	}
+
+	@Override
+	public Version version() {
+		return perform(new Request<Version>() {
+			@Override
+			public Version perform(Client client) {
+				return client.target("api")
+					.path("version")
+					.request()
+					.get(Version.class);
+			}
+		});
+	}
+
 
 }
