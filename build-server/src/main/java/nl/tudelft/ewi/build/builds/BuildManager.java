@@ -320,23 +320,30 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 		}
 
 		private void sendFileRequest(final FileRequest fileRequest) {
-			Client client = ClientBuilder.newClient();
 			String userPass = config.getClientId() + ":"
 					+ config.getClientSecret();
 			String authorization = "Basic "
 					+ Base64.encodeBytes(userPass.getBytes());
 			File file = new File(stagingDirectoryReference.get(), fileRequest.getRelativePath());
 
-			try {
-				log.info("Sending {} for build {}", fileRequest, uuid);
-				client.target(fileRequest.getCallbackUrl())
-					.request()
-					.header("Authorization", authorization)
-					.post(Entity.entity(file, MediaType.APPLICATION_XML));
+			if(file.exists()) {
+				Client client = ClientBuilder.newClient();
+
+				try {
+					log.info("Sending {} for build {}", fileRequest, uuid);
+					client.target(fileRequest.getCallbackUrl())
+						.request()
+						.header("Authorization", authorization)
+						.post(Entity.entity(file, MediaType.APPLICATION_XML));
+				}
+				finally {
+					client.close();
+				}
 			}
-			finally {
-				client.close();
+			else {
+				log.warn("Requested file for {} did not esist", fileRequest);
 			}
+
 		}
 
 		/**
