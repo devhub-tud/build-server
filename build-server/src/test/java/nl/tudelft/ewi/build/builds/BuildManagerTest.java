@@ -1,28 +1,26 @@
 package nl.tudelft.ewi.build.builds;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.when;
-
-import java.io.File;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-
 import com.google.common.io.Files;
+import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.DockerClient.AttachParameter;
+import com.spotify.docker.client.DockerException;
+import com.spotify.docker.client.MockedLogStream;
+import com.spotify.docker.client.messages.ContainerConfig;
+import com.spotify.docker.client.messages.ContainerCreation;
+import com.spotify.docker.client.messages.ContainerExit;
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.Config;
 import nl.tudelft.ewi.build.builds.BuildManager.Build;
 import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreterRegistry;
+import nl.tudelft.ewi.build.extensions.instructions.MavenBuildInstructionInterpreter;
 import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparerRegistry;
 import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
 import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
 import nl.tudelft.ewi.build.jaxrs.models.BuildResult.Status;
 import nl.tudelft.ewi.build.jaxrs.models.GitSource;
 import nl.tudelft.ewi.build.jaxrs.models.MavenBuildInstruction;
-
 import org.hamcrest.Matchers;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -34,23 +32,23 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
-import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.DockerClient.AttachParameter;
-import com.spotify.docker.client.DockerException;
-import com.spotify.docker.client.MockedLogStream;
-import com.spotify.docker.client.messages.ContainerConfig;
-import com.spotify.docker.client.messages.ContainerCreation;
-import com.spotify.docker.client.messages.ContainerExit;
+import java.io.File;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.when;
 
 @Slf4j
 @RunWith(MockitoJUnitRunner.class)
 public class BuildManagerTest {
 
 	public static final int CONCURRENT_JOBS = 3;
-	public static final int JOB_DURATION = 250;
 
 	@Mock private Config config;
 	@Mock private DockerClient dockerClient;
+	@Mock private MavenBuildInstructionInterpreter mavenBuildInstructionInterpreter;
 	
 	private BuildManager manager;
 
@@ -75,7 +73,7 @@ public class BuildManagerTest {
 		
 		manager = new BuildManager(config, dockerClient,
 				new StagingDirectoryPreparerRegistry(),
-				new BuildInstructionInterpreterRegistry());
+				new BuildInstructionInterpreterRegistry(mavenBuildInstructionInterpreter));
 	}
 	
 	@After

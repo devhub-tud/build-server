@@ -1,19 +1,20 @@
 package nl.tudelft.ewi.build.extensions.instructions;
 
-import java.util.Map;
-
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import nl.tudelft.ewi.build.jaxrs.models.BuildInstruction;
 import nl.tudelft.ewi.build.jaxrs.models.MavenBuildInstruction;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 
 public class BuildInstructionInterpreterRegistry {
 
 	private final Map<Class<? extends BuildInstruction>, BuildInstructionInterpreter<?>> registry;
 
-	public BuildInstructionInterpreterRegistry() {
+	@Inject
+	public BuildInstructionInterpreterRegistry(MavenBuildInstructionInterpreter mavenBuildInstructionInterpreter) {
 		this.registry = ImmutableMap.<Class<? extends BuildInstruction>, BuildInstructionInterpreter<?>> builder()
-				.put(MavenBuildInstruction.class, new MavenBuildInstructionInterpreter())
+				.put(MavenBuildInstruction.class, mavenBuildInstructionInterpreter)
 				.build();
 	}
 	

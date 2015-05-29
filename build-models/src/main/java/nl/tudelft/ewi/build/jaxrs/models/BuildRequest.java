@@ -15,6 +15,4 @@ public class BuildRequest {
 
 	private Integer timeout;
 
-	private List<FileRequest> fileRequests;
-
 }
