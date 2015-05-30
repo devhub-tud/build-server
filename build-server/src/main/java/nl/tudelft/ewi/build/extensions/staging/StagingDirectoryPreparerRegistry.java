@@ -1,19 +1,20 @@
 package nl.tudelft.ewi.build.extensions.staging;
 
-import java.util.Map;
-
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import nl.tudelft.ewi.build.jaxrs.models.GitSource;
 import nl.tudelft.ewi.build.jaxrs.models.Source;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 
 public class StagingDirectoryPreparerRegistry {
 
 	private final Map<Class<? extends Source>, StagingDirectoryPreparer<?>> registry;
 
-	public StagingDirectoryPreparerRegistry() {
+	@Inject
+	public StagingDirectoryPreparerRegistry(GitStagingDirectoryPreparer gitStagingDirectoryPreparer) {
 		this.registry = ImmutableMap.<Class<? extends Source>, StagingDirectoryPreparer<?>> builder()
-				.put(GitSource.class, new GitStagingDirectoryPreparer())
+				.put(GitSource.class, gitStagingDirectoryPreparer)
 				.build();
 	}
 	

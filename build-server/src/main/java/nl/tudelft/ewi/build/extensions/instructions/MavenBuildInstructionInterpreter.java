@@ -41,24 +41,30 @@ public class MavenBuildInstructionInterpreter implements BuildInstructionInterpr
 
 	@Override
 	public void runPluginBefores(MavenBuildInstruction instruction, File stagingDirectory) {
-		for(MavenBuildPlugin mavenBuildPlugin : instruction.getPlugins()) {
-			try {
-				mavenBuildPluginInterpreter.before(mavenBuildPlugin, instruction, stagingDirectory);
-			}
-			catch (Exception e) {
-				log.warn("Failed to execute build plugin {}", e, mavenBuildPlugin);
+		final List<MavenBuildPlugin> plugins = instruction.getPlugins();
+		if(plugins != null) {
+			for(MavenBuildPlugin mavenBuildPlugin : plugins) {
+				try {
+					mavenBuildPluginInterpreter.before(mavenBuildPlugin, instruction, stagingDirectory);
+				}
+				catch (Exception e) {
+					log.warn("Failed to execute build plugin {}", e, mavenBuildPlugin);
+				}
 			}
 		}
 	}
 
 	@Override
 	public void runPluginAfters(MavenBuildInstruction instruction, File stagingDirectory) {
-		for(MavenBuildPlugin mavenBuildPlugin : instruction.getPlugins()) {
-			try {
-				mavenBuildPluginInterpreter.after(mavenBuildPlugin, instruction, stagingDirectory);
-			}
-			catch (Exception e) {
-				log.warn("Failed to execute build plugin {}", e, mavenBuildPlugin);
+		final List<MavenBuildPlugin> plugins = instruction.getPlugins();
+		if(plugins != null) {
+			for(MavenBuildPlugin mavenBuildPlugin : plugins) {
+				try {
+					mavenBuildPluginInterpreter.after(mavenBuildPlugin, instruction, stagingDirectory);
+				}
+				catch (Exception e) {
+					log.warn("Failed to execute build plugin {}", e, mavenBuildPlugin);
+				}
 			}
 		}
 	}

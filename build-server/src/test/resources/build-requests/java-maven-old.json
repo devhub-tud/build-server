@@ -10,35 +10,6 @@
 		"withDisplay": true,
 		"phases": [
 			"test"
-		],
-		"plugins": [
-			{
-				"type": "MAVEN",
-				"callbackUrl": "http://localhost:8080/hooks/checkstyle-result?repository=courses%2fti1705%2fgroup-2&commit=5902d34c1d2ced5b0701efce6e184b7bbf4b5dae",
-				"filePath": "target/checkstyle-result.xml",
-				"contentType": "application/xml",
-				"phases": [
-					"checkstyle:checkstyle"
-				]
-			},
-			{
-				"type": "MAVEN",
-				"callbackUrl": "http://localhost:8080/hooks/findbugs-result?repository=courses%2fti1705%2fgroup-2&commit=5902d34c1d2ced5b0701efce6e184b7bbf4b5dae",
-				"filePath": "target/findbugsXml.xml",
-				"contentType": "application/xml",
-				"phases": [
-					"findbugs:findbugs"
-				]
-			},
-			{
-				"type": "MAVEN",
-				"callbackUrl": "http://localhost:8080/hooks/pmd-result?repository=courses%2fti1705%2fgroup-2&commit=5902d34c1d2ced5b0701efce6e184b7bbf4b5dae",
-				"filePath": "target/pmd.xml",
-				"contentType": "application/xml",
-				"phases": [
-					"pmd:pmd"
-				]
-			}
 		]
 	},
 	"callbackUrl": "http://localhost:8080/hooks/build-result?repository=courses%2fti1705%2fgroup-2&commit=5902d34c1d2ced5b0701efce6e184b7bbf4b5dae",
