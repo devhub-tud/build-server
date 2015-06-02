@@ -18,6 +18,7 @@ import nl.tudelft.ewi.build.jaxrs.models.BuildResult.Status;
 import nl.tudelft.ewi.build.jaxrs.models.GitSource;
 import nl.tudelft.ewi.build.jaxrs.models.MavenBuildInstruction;
 
+import nl.tudelft.ewi.build.jaxrs.models.Version;
 import org.jboss.resteasy.util.Base64;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
@@ -134,4 +135,11 @@ public class MockedBuildServerBackend implements BuildServerBackend {
 
 	}
 
+	@Override
+	public Version version() {
+		String versionString = MockedBuildServerBackend.class.getPackage().getImplementationVersion();
+		Version version = new Version();
+		version.setVersion(versionString);
+		return version;
+	}
 }

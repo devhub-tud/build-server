@@ -1,5 +1,35 @@
 package nl.tudelft.ewi.build.builds;
 
+import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.DockerClient.AttachParameter;
+import com.spotify.docker.client.DockerException;
+import com.spotify.docker.client.LogStream;
+import com.spotify.docker.client.messages.ContainerConfig;
+import com.spotify.docker.client.messages.ContainerCreation;
+import com.spotify.docker.client.messages.ContainerExit;
+import com.spotify.docker.client.messages.HostConfig;
+import lombok.extern.slf4j.Slf4j;
+import nl.tudelft.ewi.build.Config;
+import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreter;
+import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreterRegistry;
+import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparer;
+import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparerRegistry;
+import nl.tudelft.ewi.build.jaxrs.models.BuildInstruction;
+import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
+import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
+import nl.tudelft.ewi.build.jaxrs.models.BuildResult.Status;
+import nl.tudelft.ewi.build.jaxrs.models.Source;
+import org.apache.commons.io.FileUtils;
+import org.eclipse.jetty.util.component.AbstractLifeCycle.AbstractLifeCycleListener;
+import org.eclipse.jetty.util.component.LifeCycle;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -12,38 +42,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.apache.commons.io.FileUtils;
-import org.eclipse.jetty.util.component.AbstractLifeCycle.AbstractLifeCycleListener;
-import org.eclipse.jetty.util.component.LifeCycle;
-
-import nl.tudelft.ewi.build.Config;
-import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreter;
-import nl.tudelft.ewi.build.extensions.instructions.BuildInstructionInterpreterRegistry;
-import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparer;
-import nl.tudelft.ewi.build.extensions.staging.StagingDirectoryPreparerRegistry;
-import nl.tudelft.ewi.build.jaxrs.models.BuildInstruction;
-import nl.tudelft.ewi.build.jaxrs.models.BuildRequest;
-import nl.tudelft.ewi.build.jaxrs.models.BuildResult;
-import nl.tudelft.ewi.build.jaxrs.models.Source;
-import nl.tudelft.ewi.build.jaxrs.models.BuildResult.Status;
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.AbstractFuture;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningScheduledExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.DockerException;
-import com.spotify.docker.client.LogStream;
-import com.spotify.docker.client.DockerClient.AttachParameter;
-import com.spotify.docker.client.messages.ContainerConfig;
-import com.spotify.docker.client.messages.ContainerCreation;
-import com.spotify.docker.client.messages.ContainerExit;
-import com.spotify.docker.client.messages.HostConfig;
 
 @Slf4j
 @Singleton
@@ -268,7 +266,8 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 			BuildInstructionInterpreter<BuildInstruction> buildInstructionInterpreter =
 					getBuildIntstructionInterpreter();
 			BuildInstruction buildInstruction = buildRequest.getInstruction();
-			
+			buildInstructionInterpreter.runPluginBefores(buildInstruction, stagingDirectory);
+
 			ContainerConfig.Builder configBuilder = ContainerConfig.builder()
 					.image(buildInstructionInterpreter.getImage(buildInstruction))
 					.cmd(buildInstructionInterpreter.getCommand(buildInstruction).split(" "))
@@ -299,7 +298,9 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 			}
 
 			log.info("Waiting for container to terminate {}", id);
-			return dockerClient.waitContainer(id);
+			ContainerExit exit = dockerClient.waitContainer(id);
+			buildInstructionInterpreter.runPluginAfters(buildInstruction, stagingDirectory);
+			return exit;
 		}
 
 		/**

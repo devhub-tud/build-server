@@ -1,16 +1,14 @@
 package nl.tudelft.ewi.build.extensions.staging;
 
-import java.io.File;
-import java.io.IOException;
-
 import lombok.extern.slf4j.Slf4j;
 import nl.tudelft.ewi.build.builds.Logger;
 import nl.tudelft.ewi.build.jaxrs.models.GitSource;
-
-import org.eclipse.jgit.api.CheckoutCommand;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+
+import java.io.File;
+import java.io.IOException;
 
 @Slf4j
 public class GitStagingDirectoryPreparer implements StagingDirectoryPreparer<GitSource> {

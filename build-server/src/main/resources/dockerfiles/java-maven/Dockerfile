@@ -34,21 +34,9 @@ RUN echo 'killall Xvfb' >> /usr/bin/with-xvfb
 RUN echo 'exit $exit_value' >> /usr/bin/with-xvfb
 RUN chmod +x /usr/bin/with-xvfb
 
-RUN echo '#!/bin/bash' >> /usr/bin/fetch-deps
-RUN echo 'git clone https://github.com/SERG-Delft/jpacman-framework.git' >> /usr/bin/fetch-deps
-RUN echo 'cd jpacman-framework' >> /usr/bin/fetch-deps
-RUN echo 'git checkout 5f132d16d9258026ab1a19a973c23f275c1ad0e9' >> /usr/bin/fetch-deps
-RUN echo 'with-xvfb mvn -B clean install' >> /usr/bin/fetch-deps
-RUN echo 'cd ../' >> /usr/bin/fetch-deps
-RUN echo 'rm -rf jpacman-framework' >> /usr/bin/fetch-deps
-RUN echo 'git clone https://github.com/SERG-Delft/jpacman-template.git' >> /usr/bin/fetch-deps
-RUN echo 'cd jpacman-template' >> /usr/bin/fetch-deps
-RUN echo 'with-xvfb mvn -B package' >> /usr/bin/fetch-deps
-RUN echo 'cd ../' >> /usr/bin/fetch-deps
-RUN echo 'rm -rf jpacman-template' >> /usr/bin/fetch-deps
-RUN chmod +x /usr/bin/fetch-deps
+RUN groupadd -g 1004 build
+RUN useradd -u 1003 -g 1004 -ms /bin/bash build
+USER build
 
 ENV DISPLAY :99
 
-RUN fetch-deps
-RUN rm -rf /usr/bin/fetch-deps
