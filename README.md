@@ -1,3 +1,7 @@
+[![Stories in Ready](https://badge.waffle.io/devhub-tud/devhub.png?label=ready&title=Ready)](https://waffle.io/devhub-tud/devhub)
+[![Build Status](https://travis-ci.org/devhub-tud/build-server.svg?branch=master)](https://travis-ci.org/devhub-tud/build-server)
+[![Coverage Status](https://coveralls.io/repos/github/devhub-tud/build-server/badge.svg?branch=master)](https://coveralls.io/github/devhub-tud/build-server?branch=master)
+[![Dependency Status](https://www.versioneye.com/user/projects/569e8ac3ec6e6a000e1bb98e/badge.svg?style=flat)](https://www.versioneye.com/user/projects/569e8ac3ec6e6a000e1bb98e)
 DevHub Build-server
 ======
 DevHub is a software system designed to give students a simple practical introduction into modern software development. It provides an environment in which they can work on practical assignments without setting up their own (private) code repository or a Continuous Integration server. The environment is also designed to give students a working simple workflow largely based on GitHub's pull requests system. 

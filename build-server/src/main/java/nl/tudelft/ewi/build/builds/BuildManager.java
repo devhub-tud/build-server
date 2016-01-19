@@ -271,6 +271,7 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 			ContainerConfig.Builder configBuilder = ContainerConfig.builder()
 					.image(buildInstructionInterpreter.getImage(buildInstruction))
 					.cmd(buildInstructionInterpreter.getCommand(buildInstruction).split(" "))
+					.hostConfig(HostConfig.builder().binds(volume).build())
 					.user(config.getDockerUser())
 					.volumes(volume)
 					.workingDir(WORK_DIR);
@@ -283,7 +284,7 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 				id = creation.id();
 				containerId.set(id);
 				log.info("Starting container {}", id);
-				dockerClient.startContainer(id, HostConfig.builder().binds(volume).build());
+				dockerClient.startContainer(id);
 			}
 			catch (DockerException | InterruptedException e) {
 				logger.println("[FATAL] Failed to provision build environment");

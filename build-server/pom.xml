@@ -7,13 +7,9 @@
 	<parent>
 		<groupId>nl.tudelft.ewi.build</groupId>
 		<artifactId>build-server-parent</artifactId>
-		<version>1.1.1-SNAPSHOT</version>
+		<version>1.2.0</version>
 		<relativePath>../</relativePath>
 	</parent>
-
-	<properties>
-		<jetty.version>9.1.1.v20140108</jetty.version>
-	</properties>
 
 	<dependencies>
 		<!-- Web -->
@@ -29,21 +25,25 @@
 		</dependency>
 
 		<!-- Utilities -->
-	
+		<dependency>
+			<groupId>org.reflections</groupId>
+			<artifactId>reflections</artifactId>
+			<version>0.9.10</version>
+		</dependency>
 		<dependency>
 		  <groupId>com.spotify</groupId>
 		  <artifactId>docker-client</artifactId>
-		  <version>2.7.19</version>
+		  <version>3.5.9</version>
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.jgit</groupId>
 			<artifactId>org.eclipse.jgit</artifactId>
-			<version>3.2.0.201312181205-r</version>
+			<version>4.1.1.201511131810-r</version>
 		</dependency>
 		<dependency>
 			<groupId>nl.tudelft.ewi.build</groupId>
 			<artifactId>build-models</artifactId>
-			<version>1.1.1-SNAPSHOT</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.xeustechnologies</groupId>
@@ -77,32 +77,8 @@
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.0</version>
-				<configuration>
-					<annotationProcessors>
-						<annotationProcessor>lombok.core.AnnotationProcessor</annotationProcessor>
-					</annotationProcessors>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
-				<configuration>
-					<archive>
-						<manifest>
-							<addClasspath>true</addClasspath>
-							<classpathPrefix>lib/</classpathPrefix>
-							<mainClass>nl.tudelft.ewi.build.BuildServer</mainClass>
-						</manifest>
-					</archive>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
+				<version>2.6</version>
 				<configuration>
 					<descriptors>
 						<descriptor>
@@ -123,7 +99,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
+				<version>2.6</version>
 				<configuration>
 					<archive>
 						<manifest>
