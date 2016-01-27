@@ -9,7 +9,7 @@ import nl.tudelft.ewi.build.jaxrs.models.BuildInstruction;
  * @author Jan-Willem Gmelig Meyling
  */
 @Data
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 public abstract class FileHookPlugin<T extends BuildInstruction> extends BuildPlugin<T> {
 

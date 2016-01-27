@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>nl.tudelft.ewi.build</groupId>
 	<artifactId>build-server-parent</artifactId>
-	<version>1.2.0</version>
+	<version>1.2.1</version>
 	<packaging>pom</packaging>
 
 	<properties>
@@ -20,6 +20,7 @@
 		<lombok.version>1.16.6</lombok.version>
 		<guava.version>19.0</guava.version>
 		<jacoco.version>0.7.5.201505241946</jacoco.version>
+		<jgit.version>4.2.0.201601211800-r</jgit.version>
 	</properties>
 
 	<description>A private docker-based build server.</description>

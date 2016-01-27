@@ -7,7 +7,7 @@
 	<parent>
 		<groupId>nl.tudelft.ewi.build</groupId>
 		<artifactId>build-server-parent</artifactId>
-		<version>1.2.0</version>
+		<version>1.2.1</version>
 		<relativePath>../</relativePath>
 	</parent>
 
@@ -38,7 +38,7 @@
 		<dependency>
 			<groupId>org.eclipse.jgit</groupId>
 			<artifactId>org.eclipse.jgit</artifactId>
-			<version>4.1.1.201511131810-r</version>
+			<version>${jgit.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>nl.tudelft.ewi.build</groupId>

@@ -8,7 +8,7 @@ import nl.tudelft.ewi.build.jaxrs.models.MavenBuildInstruction;
  * @author Jan-Willem Gmelig Meyling
  */
 @Data
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 public class MavenBuildPlugin extends FileHookPlugin<MavenBuildInstruction> {
 
     public MavenBuildPlugin() {

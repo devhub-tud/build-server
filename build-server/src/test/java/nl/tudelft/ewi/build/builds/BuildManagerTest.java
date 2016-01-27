@@ -107,7 +107,7 @@ public class BuildManagerTest {
 
 	@Test
 	public void testThatJobIsRejectedWhenAtCapacity() throws InterruptedException, IOException {
-		setGitPullDuration(200l);
+		setGitPullDuration(2000l);
 
 		for (int i = 0; i < CONCURRENT_JOBS; i++) {
 			manager.schedule(createRequest());
