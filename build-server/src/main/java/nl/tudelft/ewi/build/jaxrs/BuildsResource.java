@@ -59,71 +59,74 @@ public class BuildsResource {
 		Build build = null;
 		try {
 			build = manager.schedule(buildRequest);
-			Futures.addCallback(build, new FutureCallback<BuildResult>() {
 
-				@Override
-				public void onSuccess(BuildResult result) {
-					if (Strings.isNullOrEmpty(buildRequest.getCallbackUrl())) {
-						return;
-					}
+			if (build != null) {
+				Futures.addCallback(build, new FutureCallback<BuildResult>() {
 
-					log.info("Returning build results to callback URL: {}",
+					@Override
+					public void onSuccess(BuildResult result) {
+						if (Strings.isNullOrEmpty(buildRequest.getCallbackUrl())) {
+							return;
+						}
+
+						log.info("Returning build results to callback URL: {}",
 							buildRequest.getCallbackUrl());
-					for (int i = 0; i <= 4; i++) {
-						Client client = ClientBuilder.newClient();
-						try {
-							Response response = prepareCallback(client).post(
+						for (int i = 0; i <= 4; i++) {
+							Client client = ClientBuilder.newClient();
+							try {
+								Response response = prepareCallback(client).post(
 									Entity.json(result));
-							StatusType statusInfo = response.getStatusInfo();
-							if (statusInfo.getStatusCode() >= 200
+								StatusType statusInfo = response.getStatusInfo();
+								if (statusInfo.getStatusCode() >= 200
 									&& statusInfo.getStatusCode() < 300) {
-								log.info(
+									log.info(
 										"Build result successfully returned to: {}",
 										buildRequest.getCallbackUrl());
-								return;
-							}
-							log.warn(
+									return;
+								}
+								log.warn(
 									"Could not return build result to: {}, status was: {} - {}",
 									buildRequest.getCallbackUrl(),
 									response.getStatus(),
 									statusInfo.getReasonPhrase());
-						} catch (Throwable e) {
-							log.warn(e.getMessage(), e);
-						} finally {
-							if (client != null) {
-								client.close();
+							} catch (Throwable e) {
+								log.warn(e.getMessage(), e);
+							} finally {
+								if (client != null) {
+									client.close();
+								}
+							}
+
+							// Exponential backoff.
+							if (i < 4) {
+								try {
+									Thread.sleep(5000L * 2 ^ i);
+								} catch (InterruptedException e) {
+								}
 							}
 						}
 
-						// Exponential backoff.
-						if (i < 4) {
-							try {
-								Thread.sleep(5000L * 2 ^ i);
-							} catch (InterruptedException e) {
-							}
-						}
+						log.error("Could not return build result to: {}",
+							buildRequest.getCallbackUrl());
 					}
 
-					log.error("Could not return build result to: {}",
-							buildRequest.getCallbackUrl());
-				}
-
-				private Builder prepareCallback(Client client) {
-					String userPass = config.getClientId() + ":"
+					private Builder prepareCallback(Client client) {
+						String userPass = config.getClientId() + ":"
 							+ config.getClientSecret();
-					String authorization = "Basic "
+						String authorization = "Basic "
 							+ Base64.encodeBytes(userPass.getBytes());
-					return client.target(buildRequest.getCallbackUrl())
+						return client.target(buildRequest.getCallbackUrl())
 							.request().header("Authorization", authorization);
-				}
+					}
 
-				@Override
-				public void onFailure(Throwable t) {
-					// TODO Auto-generated method stub
+					@Override
+					public void onFailure(Throwable t) {
+						// TODO Auto-generated method stub
 
-				}
+					}
 
-			}, executor);
+				}, executor);
+			}
 		} catch (Throwable e) {
 			log.error(e.getMessage(), e);
 		}
