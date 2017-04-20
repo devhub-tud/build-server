@@ -13,7 +13,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.MediaType;
@@ -21,6 +20,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.Response.StatusType;
 
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.util.Base64;
 
 import com.google.common.base.Strings;
@@ -72,7 +72,7 @@ public class BuildsResource {
 						log.info("Returning build results to callback URL: {}",
 							buildRequest.getCallbackUrl());
 						for (int i = 0; i <= 4; i++) {
-							Client client = ClientBuilder.newClient();
+							Client client = new ResteasyClientBuilder().build();
 							try {
 								Response response = prepareCallback(client).post(
 									Entity.json(result));

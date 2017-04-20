@@ -9,8 +9,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.DockerClient.AttachParameter;
-import com.spotify.docker.client.DockerException;
 import com.spotify.docker.client.LogStream;
+import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.ContainerExit;
@@ -268,7 +268,10 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 			BuildInstruction buildInstruction = buildRequest.getInstruction();
 			buildInstructionInterpreter.runPluginBefores(buildInstruction, stagingDirectory);
 
+			final HostConfig hostConfig = HostConfig.builder().binds(volume).build();
+
 			ContainerConfig.Builder configBuilder = ContainerConfig.builder()
+					.hostConfig(hostConfig)
 					.image(buildInstructionInterpreter.getImage(buildInstruction))
 					.cmd(buildInstructionInterpreter.getCommand(buildInstruction).split(" "))
 					.user(config.getDockerUser())
@@ -283,7 +286,8 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 				id = creation.id();
 				containerId.set(id);
 				log.info("Starting container {}", id);
-				dockerClient.startContainer(id, HostConfig.builder().binds(volume).build());
+				dockerClient.startContainer(id);
+
 			}
 			catch (DockerException | InterruptedException e) {
 				logger.println("[FATAL] Failed to provision build environment");

@@ -4,8 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.Files;
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.DockerClient.AttachParameter;
-import com.spotify.docker.client.DockerException;
+
 import com.spotify.docker.client.MockedLogStream;
+import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.ContainerExit;
@@ -56,11 +57,15 @@ public class BuildManagerTest {
 
 	public static final int CONCURRENT_JOBS = 3;
 
-	@Mock private Config config;
-	@Mock private DockerClient dockerClient;
-	@InjectMocks private MavenBuildInstructionInterpreter mavenBuildInstructionInterpreter;
-	@Mock private GitStagingDirectoryPreparer gitStagingDirectoryPreparer;
-	
+	@Mock
+	private Config config;
+	@Mock
+	private DockerClient dockerClient;
+	@InjectMocks
+	private MavenBuildInstructionInterpreter mavenBuildInstructionInterpreter;
+	@Mock
+	private GitStagingDirectoryPreparer gitStagingDirectoryPreparer;
+
 	private BuildManager manager;
 
 	private static File stagingDirectory;
@@ -75,18 +80,18 @@ public class BuildManagerTest {
 	public void setUp() throws DockerException, InterruptedException {
 		when(config.getMaximumConcurrentJobs()).thenReturn(CONCURRENT_JOBS);
 		when(config.getStagingDirectory()).thenReturn(stagingDirectory.getAbsolutePath());
-		
+
 		when(dockerClient.createContainer(Mockito.any(ContainerConfig.class), Mockito.anyString()))
-				.thenReturn(new ContainerCreation(UUID.randomUUID().toString()));
+				.thenReturn(ContainerCreation.builder().id(UUID.randomUUID().toString()).build());
 		when(dockerClient.attachContainer(Mockito.anyString(), Mockito.<AttachParameter>anyVararg()))
 				.thenReturn(new MockedLogStream());
-		when(dockerClient.waitContainer(Mockito.anyString())).thenReturn(new ContainerExit(0));
-		
+		when(dockerClient.waitContainer(Mockito.anyString())).thenReturn(ContainerExit.create(0));
+
 		manager = new BuildManager(config, dockerClient,
 				new StagingDirectoryPreparerRegistry(gitStagingDirectoryPreparer),
 				new BuildInstructionInterpreterRegistry(mavenBuildInstructionInterpreter));
 	}
-	
+
 	@After
 	public void tearDown() {
 		manager.lifeCycleStopping(null);
@@ -133,7 +138,7 @@ public class BuildManagerTest {
 		for (int i = 0; i < CONCURRENT_JOBS; i++) {
 			uuid = manager.schedule(createRequest()).getUUID();
 		}
-		
+
 		assertNotNull(uuid);
 		manager.killBuild(uuid);
 		assertNotNull(manager.schedule(createRequest()));
@@ -144,21 +149,21 @@ public class BuildManagerTest {
 		for (int i = 0; i < CONCURRENT_JOBS - 1; i++) {
 			manager.schedule(createRequest());
 		}
-		
+
 		UUID scheduled = manager.schedule(createRequest()).getUUID();
 		assertNotNull(scheduled);
-		
+
 		Thread.sleep(100);
 		assertNotNull(scheduled);
 	}
-	
+
 	@Test
 	public void waitForABuild() throws InterruptedException, ExecutionException {
 		Build result = manager.schedule(createRequest());
 		log.info("Result : {}", result.get());
 	}
-	
-	@Test(timeout=2000) // kill test after 2 seconds
+
+	@Test(timeout = 2000) // kill test after 2 seconds
 	public void testBuildWithTimeout() throws DockerException, InterruptedException, ExecutionException {
 		BuildRequest buildRequest = createRequest();
 		buildRequest.setTimeout(1); // timeout 1 second
@@ -177,7 +182,7 @@ public class BuildManagerTest {
 			public ContainerExit answer(InvocationOnMock invocation)
 					throws Throwable {
 				Thread.sleep(duration); // sleep 20 seconds
-				return new ContainerExit(0);
+				return ContainerExit.create(0);
 			}
 
 		});
@@ -187,7 +192,7 @@ public class BuildManagerTest {
 	public void testOldRequestSupport() throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 		objectMapper.registerModules(new MappingModule());
-		try(InputStream in = BuildManagerTest.class.getResourceAsStream("/build-requests/java-maven-old.json")) {
+		try (InputStream in = BuildManagerTest.class.getResourceAsStream("/build-requests/java-maven-old.json")) {
 			BuildRequest request = objectMapper.readValue(in, BuildRequest.class);
 			Build resultFuture = manager.schedule(request);
 			BuildResult result = resultFuture.get();
@@ -199,24 +204,24 @@ public class BuildManagerTest {
 	public void testNewRequestSupport() throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 		objectMapper.registerModules(new MappingModule());
-		try(InputStream in = BuildManagerTest.class.getResourceAsStream("/build-requests/java-maven-new.json")) {
+		try (InputStream in = BuildManagerTest.class.getResourceAsStream("/build-requests/java-maven-new.json")) {
 			BuildRequest request = objectMapper.readValue(in, BuildRequest.class);
 			Build resultFuture = manager.schedule(request);
 			BuildResult result = resultFuture.get();
 			assertEquals(Status.SUCCEEDED, result.getStatus());
 		}
 	}
-	
+
 	private BuildRequest createRequest() {
 		GitSource source = new GitSource();
 		source.setBranchName("master");
 		source.setRepositoryUrl("https://github.com/devhub-tud/build-server.git");
 		source.setCommitId("2625eaf9b476dd158ad5f9cad3d5137f3b111ea7");
-		
+
 		MavenBuildInstruction instruction = new MavenBuildInstruction();
-		instruction.setPhases(new String[] { "package" });
+		instruction.setPhases(new String[]{"package"});
 		instruction.setWithDisplay(true);
-		
+
 		BuildRequest request = new BuildRequest();
 		request.setSource(source);
 		request.setInstruction(instruction);
