@@ -261,7 +261,7 @@ public class BuildManager extends AbstractLifeCycleListener implements LifeCycle
 			stagingDirectoryReference.set(stagingDirectory);
 			prepareStagingDirectory(stagingDirectory);
 
-			String volume = String.format("%s:%s", stagingDirectory, WORK_DIR);
+			String volume = String.format("%s:%s", stagingDirectory.getAbsoluteFile(), WORK_DIR);
 
 			BuildInstructionInterpreter<BuildInstruction> buildInstructionInterpreter =
 					getBuildIntstructionInterpreter();
