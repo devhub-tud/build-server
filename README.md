@@ -25,6 +25,16 @@ sudo mkdir /workspace
 sudo mount -t vboxsf -o uid=1000,gid=50 workspace /workspace
 ```
 
+### Notes for docker for mac ###
+Because we are using a older version of the spotify docker client.
+The way we instiate the client doens't work with docker for mac out of the box.
+
+The following instructions from the spotify client readme should fix it:
+
+A note on using Docker for Mac
+
+If you are using Docker for Mac and DefaultDockerClient.fromEnv(), it might not be clear what value to use for the DOCKER_HOST environment variable. The value you should use is DOCKER_HOST=unix:///var/run/docker.sock, at least as of version 1.11.1-beta11.
+
 Add docker images to Docker
 ------------
 On the Docker host, navigate to a folder containing a `Dockerfile` and run the following command. (This example is for the 'java-maven' Dockerfile in the repository)
