@@ -43,3 +43,9 @@ On the Docker host, navigate to a folder containing a `Dockerfile` and run the f
 build -t java-maven .
 ```
 
+Triggering a build
+------------
+
+```
+curl -H "Content-Type: application/json" -X POST -d '{"instruction":{"type":"MAVEN","plugins":[],"withDisplay":true,"phases":["test"]},"callbackUrl":"http://localhost/callback","timeout":500000,"source":{"type":"GIT","repositoryUrl":"ssh://git@github.com:SERG-Delft/jpacman-template.git","branchName":"master","commitId":"b6b999aecbb5aab53bbf8aedacc452c2c7aaf0f8"}}' http://MichaelLaptop:t2hLCXVE@localhost:8082/api/builds
+```
