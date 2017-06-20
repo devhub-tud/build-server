@@ -44,7 +44,7 @@ public class BuildServerModule extends AbstractModule {
 		});
 		
 		bind(DockerClient.class).toInstance(DefaultDockerClient.fromEnv()
-				.readTimeoutMillis(DefaultDockerClient.NO_TIMEOUT)
+				.readTimeoutMillis(0)
 				.build());
 		
 		findResourcesWith(Path.class);
